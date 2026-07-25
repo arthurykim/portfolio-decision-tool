@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 268" role="img"
+     aria-label="Four accounts a person might hold: brokerage, 401k, Traditional IRA and Roth IRA, and how each is taxed">
+  <style>
+    text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+    .ink    { fill: #0b0b0b; }
+    .sub    { fill: #52514e; }
+    .muted  { fill: #898781; }
+    .panel  { fill: none; stroke: #e1e0d9; }
+    .bandA  { fill: #fdf0ea; stroke: #f6d6c6; }
+    .bandAt { fill: #b84a1e; }
+    .bandB  { fill: #eaf6f1; stroke: #c4e6d8; }
+    .bandBt { fill: #127954; }
+    .rule   { stroke: #e1e0d9; }
+    .taxed  { fill: #eb6834; }
+    .defer  { fill: #eda100; }
+    .free   { fill: #1baf7a; }
+    @media (prefers-color-scheme: dark) {
+      .ink { fill: #ffffff; } .sub { fill: #c3c2b7; } .muted { fill: #898781; }
+      .panel { stroke: #2c2c2a; } .rule { stroke: #2c2c2a; }
+      .bandA { fill: #33190f; stroke: #4d2617; } .bandAt { fill: #e08b5f; }
+      .bandB { fill: #0f2a20; stroke: #1b4436; } .bandBt { fill: #4dbf97; }
+      .taxed { fill: #d95926; } .defer { fill: #c98500; } .free { fill: #199e70; }
+    }
+  </style>
+
+  <!-- Bucket bands -->
+  <rect class="bandA" x="16" y="14" width="164" height="26" rx="13"/>
+  <text class="bandAt" x="98" y="31" font-size="12" font-weight="700" text-anchor="middle">Taxable</text>
+
+  <rect class="bandB" x="192" y="14" width="512" height="26" rx="13"/>
+  <text class="bandBt" x="448" y="31" font-size="12" font-weight="700" text-anchor="middle">Tax-advantaged (limits &amp; withdrawal rules apply)</text>
+
+  <!-- ============ 1. Brokerage ============ -->
+  <rect class="panel" x="16" y="52" width="164" height="200" rx="14" stroke-width="1.5"/>
+  <text class="ink" x="34" y="80" font-size="14.5" font-weight="800">Brokerage</text>
+  <text class="muted" x="34" y="99" font-size="11.5">Individual account</text>
+  <line class="rule" x1="34" y1="112" x2="162" y2="112"/>
+  <circle class="taxed" cx="40" cy="132" r="5"/>
+  <text class="sub" x="54" y="137" font-size="12">Dividends taxed</text>
+  <circle class="taxed" cx="40" cy="156" r="5"/>
+  <text class="sub" x="54" y="161" font-size="12">Gains taxed</text>
+  <circle class="free" cx="40" cy="180" r="5"/>
+  <text class="sub" x="54" y="185" font-size="12">No limits</text>
+  <circle class="free" cx="40" cy="204" r="5"/>
+  <text class="sub" x="54" y="209" font-size="12">Withdraw anytime</text>
+  <text class="muted" x="34" y="236" font-size="11">Best for money you</text>
+  <text class="muted" x="34" y="250" font-size="11">need before retirement</text>
+
+  <!-- ============ 2. 401(k) ============ -->
+  <rect class="panel" x="192" y="52" width="164" height="200" rx="14" stroke-width="1.5"/>
+  <text class="ink" x="210" y="80" font-size="14.5" font-weight="800">401(k)</text>
+  <text class="muted" x="210" y="99" font-size="11.5">Through employer</text>
+  <line class="rule" x1="210" y1="112" x2="338" y2="112"/>
+  <circle class="defer" cx="216" cy="132" r="5"/>
+  <text class="sub" x="230" y="137" font-size="12">Tax deferred</text>
+  <circle class="free" cx="216" cy="156" r="5"/>
+  <text class="sub" x="230" y="161" font-size="12">Employer match</text>
+  <circle class="free" cx="216" cy="180" r="5"/>
+  <text class="sub" x="230" y="185" font-size="12">Highest limit</text>
+  <circle class="taxed" cx="216" cy="204" r="5"/>
+  <text class="sub" x="230" y="209" font-size="12">Locked till 59½</text>
+  <text class="muted" x="210" y="236" font-size="11">Match first — it is</text>
+  <text class="muted" x="210" y="250" font-size="11">free money</text>
+
+  <!-- ============ 3. Traditional IRA ============ -->
+  <rect class="panel" x="368" y="52" width="164" height="200" rx="14" stroke-width="1.5"/>
+  <text class="ink" x="386" y="80" font-size="14.5" font-weight="800">Traditional IRA</text>
+  <text class="muted" x="386" y="99" font-size="11.5">You open it</text>
+  <line class="rule" x1="386" y1="112" x2="514" y2="112"/>
+  <circle class="defer" cx="392" cy="132" r="5"/>
+  <text class="sub" x="406" y="137" font-size="12">Tax deferred</text>
+  <circle class="free" cx="392" cy="156" r="5"/>
+  <text class="sub" x="406" y="161" font-size="12">Deduct now</text>
+  <circle class="taxed" cx="392" cy="180" r="5"/>
+  <text class="sub" x="406" y="185" font-size="12">Taxed on exit</text>
+  <circle class="taxed" cx="392" cy="204" r="5"/>
+  <text class="sub" x="406" y="209" font-size="12">Locked till 59½</text>
+  <text class="muted" x="386" y="236" font-size="11">If you expect a lower</text>
+  <text class="muted" x="386" y="250" font-size="11">rate in retirement</text>
+
+  <!-- ============ 4. Roth IRA ============ -->
+  <rect class="panel" x="544" y="52" width="160" height="200" rx="14" stroke-width="1.5"/>
+  <text class="ink" x="562" y="80" font-size="14.5" font-weight="800">Roth IRA</text>
+  <text class="muted" x="562" y="99" font-size="11.5">You open it</text>
+  <line class="rule" x1="562" y1="112" x2="686" y2="112"/>
+  <circle class="taxed" cx="568" cy="132" r="5"/>
+  <text class="sub" x="582" y="137" font-size="12">Taxed going in</text>
+  <circle class="free" cx="568" cy="156" r="5"/>
+  <text class="sub" x="582" y="161" font-size="12">Growth tax-free</text>
+  <circle class="free" cx="568" cy="180" r="5"/>
+  <text class="sub" x="582" y="185" font-size="12">Exit tax-free</text>
+  <circle class="defer" cx="568" cy="204" r="5"/>
+  <text class="sub" x="582" y="209" font-size="12">Income limits</text>
+  <text class="muted" x="562" y="236" font-size="11">Strong for young</text>
+  <text class="muted" x="562" y="250" font-size="11">savers, low bracket</text>
+</svg>

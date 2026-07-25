@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 230" role="img"
+     aria-label="Many individual company stocks bundled into a single ETF share">
+  <style>
+    text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+    .ink   { fill: #0b0b0b; }
+    .sub   { fill: #52514e; }
+    .muted { fill: #898781; }
+    .tile  { fill: #f0f4fb; stroke: #cfe0f6; }
+    .tile-t{ fill: #2a78d6; }
+    .box   { fill: none; stroke: #e1e0d9; }
+    .accent{ fill: #2a78d6; }
+    .arrow { stroke: #898781; fill: none; }
+    .bar   { fill: #2a78d6; }
+    @media (prefers-color-scheme: dark) {
+      .ink { fill: #ffffff; } .sub { fill: #c3c2b7; } .muted { fill: #898781; }
+      .tile { fill: #16273c; stroke: #24405f; } .tile-t { fill: #3987e5; }
+      .box { stroke: #2c2c2a; } .accent { fill: #3987e5; } .bar { fill: #3987e5; }
+    }
+  </style>
+
+  <!-- Left: individual companies -->
+  <text class="sub" x="20" y="26" font-size="13" font-weight="700">Individual stocks</text>
+  <g>
+    <rect class="tile" x="20"  y="42" width="54" height="40" rx="8"/>
+    <text class="tile-t" x="47"  y="67" font-size="13" font-weight="800" text-anchor="middle">AAPL</text>
+    <rect class="tile" x="84"  y="42" width="54" height="40" rx="8"/>
+    <text class="tile-t" x="111" y="67" font-size="13" font-weight="800" text-anchor="middle">MSFT</text>
+    <rect class="tile" x="148" y="42" width="54" height="40" rx="8"/>
+    <text class="tile-t" x="175" y="67" font-size="13" font-weight="800" text-anchor="middle">NVDA</text>
+
+    <rect class="tile" x="20"  y="92" width="54" height="40" rx="8"/>
+    <text class="tile-t" x="47"  y="117" font-size="13" font-weight="800" text-anchor="middle">AMZN</text>
+    <rect class="tile" x="84"  y="92" width="54" height="40" rx="8"/>
+    <text class="tile-t" x="111" y="117" font-size="13" font-weight="800" text-anchor="middle">JPM</text>
+    <rect class="tile" x="148" y="92" width="54" height="40" rx="8"/>
+    <text class="tile-t" x="175" y="117" font-size="13" font-weight="800" text-anchor="middle">XOM</text>
+
+    <rect class="tile" x="20"  y="142" width="54" height="40" rx="8"/>
+    <text class="tile-t" x="47"  y="167" font-size="13" font-weight="800" text-anchor="middle">KO</text>
+    <rect class="tile" x="84"  y="142" width="54" height="40" rx="8"/>
+    <text class="tile-t" x="111" y="167" font-size="13" font-weight="800" text-anchor="middle">PG</text>
+    <rect class="tile" x="148" y="142" width="54" height="40" rx="8"/>
+    <text class="muted" x="175" y="167" font-size="15" font-weight="700" text-anchor="middle">+492</text>
+  </g>
+  <text class="muted" x="20" y="203" font-size="12">Buying each one separately: 500 trades</text>
+
+  <!-- Arrow -->
+  <path class="arrow" d="M 232 112 L 296 112" stroke-width="2"/>
+  <path class="arrow" d="M 288 105 L 296 112 L 288 119" stroke-width="2" stroke-linejoin="round"/>
+  <text class="muted" x="264" y="98" font-size="11.5" text-anchor="middle">bundled into</text>
+
+  <!-- Right: the ETF share -->
+  <text class="sub" x="330" y="26" font-size="13" font-weight="700">One ETF share</text>
+  <rect class="box" x="330" y="42" width="370" height="140" rx="14" stroke-width="1.5"/>
+  <text class="ink" x="352" y="76" font-size="22" font-weight="800">SPY</text>
+  <text class="sub" x="352" y="97" font-size="12.5">Holds all ~500 companies at once</text>
+
+  <!-- mini holdings bars -->
+  <g>
+    <rect class="bar" x="352" y="118" width="14" height="42" rx="3" opacity="0.9"/>
+    <rect class="bar" x="372" y="130" width="14" height="30" rx="3" opacity="0.8"/>
+    <rect class="bar" x="392" y="124" width="14" height="36" rx="3" opacity="0.7"/>
+    <rect class="bar" x="412" y="138" width="14" height="22" rx="3" opacity="0.6"/>
+    <rect class="bar" x="432" y="128" width="14" height="32" rx="3" opacity="0.5"/>
+    <rect class="bar" x="452" y="144" width="14" height="16" rx="3" opacity="0.45"/>
+    <rect class="bar" x="472" y="134" width="14" height="26" rx="3" opacity="0.4"/>
+    <rect class="bar" x="492" y="148" width="14" height="12" rx="3" opacity="0.35"/>
+  </g>
+  <text class="muted" x="530" y="126" font-size="12">One purchase.</text>
+  <text class="muted" x="530" y="144" font-size="12">One expense ratio.</text>
+  <text class="muted" x="530" y="162" font-size="12">Trades like a stock.</text>
+
+  <text class="muted" x="330" y="203" font-size="12">Buying the ETF: 1 trade</text>
+</svg>

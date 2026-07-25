@@ -326,13 +326,19 @@ def _article_meta(slug: str) -> dict:
     title = lines[0].lstrip("# ").strip()
     body = "\n".join(lines[1:]).strip()
     teaser = body.split("\n\n")[0].replace("\n", " ")
-    return {"slug": slug, "title": title, "teaser": teaser, "content": text}
+    return {
+        "slug": slug,
+        "title": title,
+        "teaser": teaser,
+        "image": f"/img/{slug}.svg",
+        "content": text,
+    }
 
 
 @app.get("/api/learn")
 def learn_index():
     return [
-        {k: a[k] for k in ("slug", "title", "teaser")}
+        {k: a[k] for k in ("slug", "title", "teaser", "image")}
         for a in (_article_meta(slug) for slug in LEARN_ARTICLES)
     ]
 

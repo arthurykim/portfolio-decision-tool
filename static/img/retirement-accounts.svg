@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 260" role="img"
+     aria-label="401k, Traditional IRA and Roth IRA compared by when tax is paid: contribute, grow, withdraw">
+  <style>
+    text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+    .ink   { fill: #0b0b0b; }
+    .sub   { fill: #52514e; }
+    .muted { fill: #898781; }
+    .panel { fill: none; stroke: #e1e0d9; }
+    .stage { fill: #f0efec; }
+    .free  { fill: #1baf7a; }
+    .taxed { fill: #eb6834; }
+    .onDark{ fill: #ffffff; }
+    .line  { stroke: #c3c2b7; fill: none; }
+    .badge { fill: #f0f4fb; stroke: #cfe0f6; }
+    .badgeT{ fill: #2a78d6; }
+    @media (prefers-color-scheme: dark) {
+      .ink { fill: #ffffff; } .sub { fill: #c3c2b7; } .muted { fill: #898781; }
+      .panel { stroke: #2c2c2a; } .stage { fill: #2c2c2a; }
+      .free { fill: #199e70; } .taxed { fill: #d95926; } .line { stroke: #383835; }
+      .badge { fill: #16273c; stroke: #24405f; } .badgeT { fill: #3987e5; }
+    }
+  </style>
+
+  <text class="muted" x="16" y="20" font-size="12">When does the tax get paid?</text>
+
+  <!-- ================= 401(k) ================= -->
+  <rect class="panel" x="16" y="32" width="222" height="212" rx="14" stroke-width="1.5"/>
+  <text class="ink" x="36" y="62" font-size="16" font-weight="800">401(k)</text>
+  <rect class="badge" x="36" y="74" width="140" height="22" rx="11"/>
+  <text class="badgeT" x="48" y="89" font-size="11.5" font-weight="700">employer match</text>
+
+  <g>
+    <rect class="stage" x="36" y="112" width="182" height="30" rx="8"/>
+    <circle class="free" cx="52" cy="127" r="6"/>
+    <text class="sub" x="68" y="132" font-size="12.5">Contribute — pre-tax</text>
+
+    <rect class="stage" x="36" y="148" width="182" height="30" rx="8"/>
+    <circle class="free" cx="52" cy="163" r="6"/>
+    <text class="sub" x="68" y="168" font-size="12.5">Grow — untaxed</text>
+
+    <rect class="taxed" x="36" y="184" width="182" height="30" rx="8"/>
+    <text class="onDark" x="52" y="204" font-size="12.5" font-weight="700">Withdraw — taxed</text>
+  </g>
+  <text class="muted" x="36" y="232" font-size="11.5">Highest limits · via your employer</text>
+
+  <!-- ================= Traditional IRA ================= -->
+  <rect class="panel" x="250" y="32" width="222" height="212" rx="14" stroke-width="1.5"/>
+  <text class="ink" x="270" y="62" font-size="16" font-weight="800">Traditional IRA</text>
+  <rect class="badge" x="270" y="74" width="112" height="22" rx="11"/>
+  <text class="badgeT" x="282" y="89" font-size="11.5" font-weight="700">tax later</text>
+
+  <g>
+    <rect class="stage" x="270" y="112" width="182" height="30" rx="8"/>
+    <circle class="free" cx="286" cy="127" r="6"/>
+    <text class="sub" x="302" y="132" font-size="12.5">Contribute — deductible</text>
+
+    <rect class="stage" x="270" y="148" width="182" height="30" rx="8"/>
+    <circle class="free" cx="286" cy="163" r="6"/>
+    <text class="sub" x="302" y="168" font-size="12.5">Grow — untaxed</text>
+
+    <rect class="taxed" x="270" y="184" width="182" height="30" rx="8"/>
+    <text class="onDark" x="286" y="204" font-size="12.5" font-weight="700">Withdraw — taxed</text>
+  </g>
+  <text class="muted" x="270" y="232" font-size="11.5">Bet: lower tax rate in retirement</text>
+
+  <!-- ================= Roth IRA ================= -->
+  <rect class="panel" x="484" y="32" width="220" height="212" rx="14" stroke-width="1.5"/>
+  <text class="ink" x="504" y="62" font-size="16" font-weight="800">Roth IRA</text>
+  <rect class="badge" x="504" y="74" width="126" height="22" rx="11"/>
+  <text class="badgeT" x="516" y="89" font-size="11.5" font-weight="700">tax-free growth</text>
+
+  <g>
+    <rect class="taxed" x="504" y="112" width="180" height="30" rx="8"/>
+    <text class="onDark" x="520" y="132" font-size="12.5" font-weight="700">Contribute — taxed</text>
+
+    <rect class="stage" x="504" y="148" width="180" height="30" rx="8"/>
+    <circle class="free" cx="520" cy="163" r="6"/>
+    <text class="sub" x="536" y="168" font-size="12.5">Grow — untaxed</text>
+
+    <rect class="stage" x="504" y="184" width="180" height="30" rx="8"/>
+    <circle class="free" cx="520" cy="199" r="6"/>
+    <text class="sub" x="536" y="204" font-size="12.5">Withdraw — tax-free</text>
+  </g>
+  <text class="muted" x="504" y="232" font-size="11.5">Bet: lower tax rate right now</text>
+</svg>

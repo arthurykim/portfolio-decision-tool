@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 250" role="img"
+     aria-label="An active fund picks a few stocks and charges high fees; an index fund holds the whole list cheaply">
+  <style>
+    text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+    .ink   { fill: #0b0b0b; }
+    .sub   { fill: #52514e; }
+    .muted { fill: #898781; }
+    .panel { fill: none; stroke: #e1e0d9; }
+    .dot   { fill: #e1e0d9; }
+    .pick  { fill: #eb6834; }
+    .all   { fill: #2a78d6; }
+    .feeA  { fill: #eb6834; }
+    .feeI  { fill: #2a78d6; }
+    .track { fill: #f0efec; }
+    @media (prefers-color-scheme: dark) {
+      .ink { fill: #ffffff; } .sub { fill: #c3c2b7; } .muted { fill: #898781; }
+      .panel { stroke: #2c2c2a; } .dot { fill: #383835; }
+      .pick { fill: #d95926; } .all { fill: #3987e5; }
+      .feeA { fill: #d95926; } .feeI { fill: #3987e5; } .track { fill: #2c2c2a; }
+    }
+  </style>
+
+  <!-- ============ Active fund ============ -->
+  <rect class="panel" x="16" y="16" width="332" height="218" rx="14" stroke-width="1.5"/>
+  <text class="ink" x="40" y="48" font-size="16" font-weight="800">Active fund</text>
+  <text class="muted" x="40" y="69" font-size="12.5">A manager picks which stocks to hold</text>
+
+  <!-- grid of 40 dots, 6 highlighted as "picks" -->
+  <g>
+    <circle class="pick" cx="48"  cy="98" r="6"/><circle class="dot" cx="76"  cy="98" r="6"/>
+    <circle class="dot"  cx="104" cy="98" r="6"/><circle class="pick" cx="132" cy="98" r="6"/>
+    <circle class="dot"  cx="160" cy="98" r="6"/><circle class="dot" cx="188" cy="98" r="6"/>
+    <circle class="dot"  cx="216" cy="98" r="6"/><circle class="dot" cx="244" cy="98" r="6"/>
+    <circle class="dot"  cx="272" cy="98" r="6"/><circle class="pick" cx="300" cy="98" r="6"/>
+
+    <circle class="dot"  cx="48"  cy="124" r="6"/><circle class="dot" cx="76"  cy="124" r="6"/>
+    <circle class="pick" cx="104" cy="124" r="6"/><circle class="dot" cx="132" cy="124" r="6"/>
+    <circle class="dot"  cx="160" cy="124" r="6"/><circle class="dot" cx="188" cy="124" r="6"/>
+    <circle class="pick" cx="216" cy="124" r="6"/><circle class="dot" cx="244" cy="124" r="6"/>
+    <circle class="dot"  cx="272" cy="124" r="6"/><circle class="dot" cx="300" cy="124" r="6"/>
+
+    <circle class="dot"  cx="48"  cy="150" r="6"/><circle class="pick" cx="76"  cy="150" r="6"/>
+    <circle class="dot"  cx="104" cy="150" r="6"/><circle class="dot" cx="132" cy="150" r="6"/>
+    <circle class="dot"  cx="160" cy="150" r="6"/><circle class="dot" cx="188" cy="150" r="6"/>
+    <circle class="dot"  cx="216" cy="150" r="6"/><circle class="dot" cx="244" cy="150" r="6"/>
+    <circle class="dot"  cx="272" cy="150" r="6"/><circle class="dot" cx="300" cy="150" r="6"/>
+  </g>
+  <text class="muted" x="40" y="180" font-size="11.5">Holds a selected few · tries to beat the market</text>
+
+  <!-- fee bar -->
+  <text class="sub" x="40" y="205" font-size="12" font-weight="600">Typical fee</text>
+  <rect class="track" x="112" y="194" width="200" height="14" rx="7"/>
+  <rect class="feeA"  x="112" y="194" width="150" height="14" rx="7"/>
+  <text class="ink" x="272" y="205" font-size="12" font-weight="700">0.75%/yr</text>
+
+  <!-- ============ Index fund ============ -->
+  <rect class="panel" x="372" y="16" width="332" height="218" rx="14" stroke-width="1.5"/>
+  <text class="ink" x="396" y="48" font-size="16" font-weight="800">Index fund</text>
+  <text class="muted" x="396" y="69" font-size="12.5">No picker — it just holds the whole list</text>
+
+  <g>
+    <circle class="all" cx="404" cy="98" r="6"/><circle class="all" cx="432" cy="98" r="6"/>
+    <circle class="all" cx="460" cy="98" r="6"/><circle class="all" cx="488" cy="98" r="6"/>
+    <circle class="all" cx="516" cy="98" r="6"/><circle class="all" cx="544" cy="98" r="6"/>
+    <circle class="all" cx="572" cy="98" r="6"/><circle class="all" cx="600" cy="98" r="6"/>
+    <circle class="all" cx="628" cy="98" r="6"/><circle class="all" cx="656" cy="98" r="6"/>
+
+    <circle class="all" cx="404" cy="124" r="6"/><circle class="all" cx="432" cy="124" r="6"/>
+    <circle class="all" cx="460" cy="124" r="6"/><circle class="all" cx="488" cy="124" r="6"/>
+    <circle class="all" cx="516" cy="124" r="6"/><circle class="all" cx="544" cy="124" r="6"/>
+    <circle class="all" cx="572" cy="124" r="6"/><circle class="all" cx="600" cy="124" r="6"/>
+    <circle class="all" cx="628" cy="124" r="6"/><circle class="all" cx="656" cy="124" r="6"/>
+
+    <circle class="all" cx="404" cy="150" r="6"/><circle class="all" cx="432" cy="150" r="6"/>
+    <circle class="all" cx="460" cy="150" r="6"/><circle class="all" cx="488" cy="150" r="6"/>
+    <circle class="all" cx="516" cy="150" r="6"/><circle class="all" cx="544" cy="150" r="6"/>
+    <circle class="all" cx="572" cy="150" r="6"/><circle class="all" cx="600" cy="150" r="6"/>
+    <circle class="all" cx="628" cy="150" r="6"/><circle class="all" cx="656" cy="150" r="6"/>
+  </g>
+  <text class="muted" x="396" y="180" font-size="11.5">Holds everything · matches the market</text>
+
+  <text class="sub" x="396" y="205" font-size="12" font-weight="600">Typical fee</text>
+  <rect class="track" x="468" y="194" width="200" height="14" rx="7"/>
+  <rect class="feeI"  x="468" y="194" width="8" height="14" rx="4"/>
+  <text class="ink" x="486" y="205" font-size="12" font-weight="700">0.03%/yr</text>
+</svg>
