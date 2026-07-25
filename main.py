@@ -19,7 +19,8 @@ from auth import (
 )
 from backtest import run_backtest
 from data import (
-    RANGES, TICKERS, get_stock_quotes, load_universe, period_returns, stock_catalog,
+    RANGES, TICKERS, get_movers, get_stock_quotes, load_universe,
+    period_returns, stock_catalog,
 )
 from rag import answer as rag_answer
 
@@ -268,6 +269,16 @@ def stock_quotes(symbols: str = Query(..., max_length=400)):
     return quotes
 
 
+@app.get("/api/stocks/movers")
+def stock_movers():
+    """Top 5 gainers and losers across the S&P 500 catalog (1D change)."""
+    try:
+        return get_movers()
+    except Exception as exc:
+        logger.warning("Movers failed: %s", exc)
+        raise HTTPException(status_code=503, detail="Quote source unavailable")
+
+
 @app.get("/api/watchlist")
 def watchlist(user: dict = Depends(require_user)):
     symbols = db.get_watchlist(user["id"])
@@ -295,6 +306,42 @@ def pin(req: PinRequest, user: dict = Depends(require_user)):
 def unpin(symbol: str, user: dict = Depends(require_user)):
     db.remove_from_watchlist(user["id"], symbol.strip().upper())
     return {"symbols": db.get_watchlist(user["id"])}
+
+
+# ---------------------------------------------------------------------------
+# Learn articles
+# ---------------------------------------------------------------------------
+KNOWLEDGE_DIR = Path(__file__).parent / "knowledge"
+LEARN_ARTICLES = {
+    "what-are-etfs": "what-are-etfs.md",
+    "what-are-index-funds": "what-are-index-funds.md",
+    "retirement-accounts": "retirement-accounts.md",
+    "taxable-vs-tax-advantaged": "taxable-vs-tax-advantaged.md",
+}
+
+
+def _article_meta(slug: str) -> dict:
+    text = (KNOWLEDGE_DIR / LEARN_ARTICLES[slug]).read_text()
+    lines = text.strip().splitlines()
+    title = lines[0].lstrip("# ").strip()
+    body = "\n".join(lines[1:]).strip()
+    teaser = body.split("\n\n")[0].replace("\n", " ")
+    return {"slug": slug, "title": title, "teaser": teaser, "content": text}
+
+
+@app.get("/api/learn")
+def learn_index():
+    return [
+        {k: a[k] for k in ("slug", "title", "teaser")}
+        for a in (_article_meta(slug) for slug in LEARN_ARTICLES)
+    ]
+
+
+@app.get("/api/learn/{slug}")
+def learn_article(slug: str):
+    if slug not in LEARN_ARTICLES:
+        raise HTTPException(status_code=404, detail="Unknown article")
+    return _article_meta(slug)
 
 
 # ---------------------------------------------------------------------------
