@@ -1,0 +1,17 @@
+{
+ "source": "Curated notable tech IPOs, 2024-2025",
+ "stocks": [
+  {"symbol": "RDDT", "name": "Reddit", "ipo": "2024-03", "sector": "Social / Advertising"},
+  {"symbol": "ALAB", "name": "Astera Labs", "ipo": "2024-03", "sector": "Semiconductors / AI"},
+  {"symbol": "RBRK", "name": "Rubrik", "ipo": "2024-04", "sector": "Data Security"},
+  {"symbol": "TTAN", "name": "ServiceTitan", "ipo": "2024-12", "sector": "Vertical SaaS"},
+  {"symbol": "SAIL", "name": "SailPoint", "ipo": "2025-02", "sector": "Identity Security"},
+  {"symbol": "CRWV", "name": "CoreWeave", "ipo": "2025-03", "sector": "AI Cloud Infrastructure"},
+  {"symbol": "CHYM", "name": "Chime", "ipo": "2025-06", "sector": "Fintech / Banking"},
+  {"symbol": "CRCL", "name": "Circle", "ipo": "2025-06", "sector": "Stablecoins / Crypto"},
+  {"symbol": "FIG", "name": "Figma", "ipo": "2025-07", "sector": "Design Software"},
+  {"symbol": "BLSH", "name": "Bullish", "ipo": "2025-08", "sector": "Crypto Exchange"},
+  {"symbol": "KLAR", "name": "Klarna", "ipo": "2025-09", "sector": "Fintech / BNPL"},
+  {"symbol": "STUB", "name": "StubHub", "ipo": "2025-09", "sector": "Ticketing Marketplace"}
+ ]
+}

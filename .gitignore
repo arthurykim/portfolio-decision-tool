@@ -1,6 +1,8 @@
 .venv/
 cache/
+db/
 __pycache__/
 *.pyc
 .DS_Store
 .env
+eval/results.json

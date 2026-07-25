@@ -23,7 +23,7 @@ def main() -> None:
     }
     OUT.parent.mkdir(exist_ok=True)
     OUT.write_text(json.dumps(snapshot, indent=2) + "\n")
-    print(f"wrote {OUT.relative_to(Path.cwd())} (as of {snapshot['as_of']})")
+    print(f"wrote {OUT} (as of {snapshot['as_of']})")
 
 
 if __name__ == "__main__":

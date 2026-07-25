@@ -7,13 +7,20 @@ import logging
 from pathlib import Path
 
 import pandas as pd
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
 
+import db
+from auth import (
+    USERNAME_RE, clear_session_cookie, current_user, hash_password,
+    require_admin, require_user, set_session_cookie, verify_password,
+)
 from backtest import run_backtest
-from data import RANGES, TICKERS, load_universe, period_returns
+from data import (
+    RANGES, TICKERS, get_stock_quotes, load_universe, period_returns, stock_catalog,
+)
 from rag import answer as rag_answer
 
 logger = logging.getLogger("uvicorn.error")
@@ -23,6 +30,7 @@ app = FastAPI(
     version="1.0.0",
     description="Backtest capital allocations against real historical market data.",
 )
+db.init_db()
 
 app.add_middleware(
     CORSMiddleware,
@@ -30,6 +38,7 @@ app.add_middleware(
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
+
 
 def _prices() -> pd.DataFrame:
     return load_universe()
@@ -67,6 +76,19 @@ class ChatTurn(BaseModel):
 class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=2000)
     history: list[ChatTurn] = Field(default_factory=list, max_length=20)
+
+
+class Credentials(BaseModel):
+    username: str = Field(..., min_length=3, max_length=32)
+    password: str = Field(..., min_length=8, max_length=128)
+
+
+class PinRequest(BaseModel):
+    symbol: str = Field(..., min_length=1, max_length=10)
+
+
+class AboutUpdate(BaseModel):
+    content: str = Field(..., min_length=1, max_length=20000)
 
 
 # ---------------------------------------------------------------------------
@@ -190,6 +212,103 @@ def chat(req: ChatRequest):
     except Exception as exc:
         logger.warning("Chat failed: %s", exc)
         raise HTTPException(status_code=500, detail="Chat unavailable")
+
+
+# ---------------------------------------------------------------------------
+# Auth
+# ---------------------------------------------------------------------------
+@app.post("/api/auth/register")
+def register(creds: Credentials, response: Response):
+    if not USERNAME_RE.match(creds.username):
+        raise HTTPException(status_code=422, detail="Username: 3-32 letters, digits, . _ -")
+    if db.get_user_by_name(creds.username):
+        raise HTTPException(status_code=409, detail="Username already taken")
+    user = db.create_user(creds.username, hash_password(creds.password))
+    set_session_cookie(response, user["id"])
+    return {"username": user["username"], "is_admin": user["is_admin"]}
+
+
+@app.post("/api/auth/login")
+def login(creds: Credentials, response: Response):
+    row = db.get_user_by_name(creds.username)
+    if row is None or not verify_password(creds.password, row["password_hash"]):
+        raise HTTPException(status_code=401, detail="Invalid username or password")
+    set_session_cookie(response, row["id"])
+    return {"username": row["username"], "is_admin": bool(row["is_admin"])}
+
+
+@app.post("/api/auth/logout")
+def logout(response: Response):
+    clear_session_cookie(response)
+    return {"ok": True}
+
+
+@app.get("/api/auth/me")
+def me(user: dict | None = Depends(current_user)):
+    return {"user": {"username": user["username"], "is_admin": user["is_admin"]} if user else None}
+
+
+# ---------------------------------------------------------------------------
+# Stocks & watchlist
+# ---------------------------------------------------------------------------
+@app.get("/api/stocks/quotes")
+def stock_quotes(symbols: str = Query(..., max_length=400)):
+    requested = [s.strip().upper() for s in symbols.split(",") if s.strip()][:30]
+    catalog = stock_catalog()
+    known = [s for s in requested if s in catalog]
+    if not known:
+        raise HTTPException(status_code=422, detail="No known symbols requested")
+    try:
+        quotes = get_stock_quotes(known)
+    except Exception as exc:
+        logger.warning("Stock quotes failed: %s", exc)
+        raise HTTPException(status_code=503, detail="Quote source unavailable")
+    for q in quotes:
+        q["name"] = catalog[q["symbol"]]["name"]
+    return quotes
+
+
+@app.get("/api/watchlist")
+def watchlist(user: dict = Depends(require_user)):
+    symbols = db.get_watchlist(user["id"])
+    quotes = []
+    if symbols:
+        try:
+            quotes = stock_quotes(symbols=",".join(symbols))
+        except HTTPException:
+            quotes = []
+    return {"symbols": symbols, "quotes": quotes}
+
+
+@app.post("/api/watchlist")
+def pin(req: PinRequest, user: dict = Depends(require_user)):
+    symbol = req.symbol.strip().upper()
+    if symbol not in stock_catalog() and symbol not in TICKERS:
+        raise HTTPException(status_code=422, detail=f"Unknown symbol {symbol}")
+    if len(db.get_watchlist(user["id"])) >= 30:
+        raise HTTPException(status_code=422, detail="Watchlist is limited to 30 symbols")
+    db.add_to_watchlist(user["id"], symbol)
+    return {"symbols": db.get_watchlist(user["id"])}
+
+
+@app.delete("/api/watchlist/{symbol}")
+def unpin(symbol: str, user: dict = Depends(require_user)):
+    db.remove_from_watchlist(user["id"], symbol.strip().upper())
+    return {"symbols": db.get_watchlist(user["id"])}
+
+
+# ---------------------------------------------------------------------------
+# Editable content
+# ---------------------------------------------------------------------------
+@app.get("/api/about")
+def about():
+    return {"content": db.get_content("about") or ""}
+
+
+@app.put("/api/about")
+def update_about(req: AboutUpdate, user: dict = Depends(require_admin)):
+    db.set_content("about", req.content)
+    return {"content": req.content}
 
 
 # Static frontend last so /api/* wins routing.

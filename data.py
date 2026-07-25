@@ -1,5 +1,7 @@
 """Price data layer: fetch from yfinance, cache to local parquet files."""
+import json
 import os
+import threading
 import time
 from pathlib import Path
 import pandas as pd
@@ -14,6 +16,7 @@ CACHE_MAX_AGE = int(os.environ.get("CACHE_MAX_AGE", 3600))
 # Tickers we support in v1. Keep this small and curated.
 TICKERS = {
     "SPY": "S&P 500 (US Large Cap)",
+    "VOO": "S&P 500 (Vanguard)",
     "AGG": "US Aggregate Bonds",
     "TLT": "20+ Year Treasury",
     "GLD": "Gold",
@@ -95,6 +98,46 @@ def period_returns(prices: pd.DataFrame) -> list[dict]:
             "spark": [round(float(v), 2) for v in spark],
         })
     return out
+
+
+# ---------------------------------------------------------------- stocks
+STATIC_DATA = Path(__file__).parent / "static" / "data"
+_stock_cache: dict[str, tuple[float, dict]] = {}
+_stock_lock = threading.Lock()
+STOCK_QUOTE_TTL = 600
+
+
+def stock_catalog() -> dict[str, dict]:
+    """All known stock symbols → {name, sector} from the catalog files."""
+    catalog = {}
+    for fname in ("sp500.json", "ipos.json"):
+        payload = json.loads((STATIC_DATA / fname).read_text())
+        for s in payload["stocks"]:
+            catalog.setdefault(s["symbol"], {"name": s["name"], "sector": s.get("sector", "")})
+    return catalog
+
+
+def get_stock_quotes(symbols: list[str]) -> list[dict]:
+    """Latest price + 1D change for catalog symbols. Batched, 10-min cache."""
+    now = time.time()
+    with _stock_lock:
+        missing = [s for s in symbols if s not in _stock_cache or now - _stock_cache[s][0] > STOCK_QUOTE_TTL]
+    if missing:
+        df = yf.download(missing, period="5d", auto_adjust=True, progress=False)
+        closes = df["Close"] if isinstance(df.columns, pd.MultiIndex) else df[["Close"]].rename(columns={"Close": missing[0]})
+        closes = closes.dropna(how="all")
+        if len(closes) >= 2:
+            last, prev = closes.iloc[-1], closes.iloc[-2]
+            with _stock_lock:
+                for s in missing:
+                    if s in closes.columns and pd.notna(last.get(s)) and pd.notna(prev.get(s)):
+                        _stock_cache[s] = (now, {
+                            "symbol": s,
+                            "price": round(float(last[s]), 2),
+                            "change_pct": round(float(last[s] / prev[s] - 1) * 100, 2),
+                        })
+    with _stock_lock:
+        return [_stock_cache[s][1] for s in symbols if s in _stock_cache]
 
 
 if __name__ == "__main__":

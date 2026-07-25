@@ -1,14 +1,19 @@
-"""Seed a synthetic parquet cache when none exists (hermetic CI runs)."""
+"""Test isolation: temp DB + synthetic parquet cache when none exists."""
+import os
+import tempfile
+
+os.environ["DB_PATH"] = os.path.join(tempfile.mkdtemp(prefix="pdt-test-"), "app.db")
+
 import numpy as np
 import pandas as pd
 
 import data
 
 INCEPTION = {
-    "SPY": "1993-02-01", "AGG": "2003-09-29", "TLT": "2002-07-30",
-    "GLD": "2004-11-18", "VTI": "2001-06-15", "VXUS": "2011-01-28",
-    "QQQ": "1999-03-10", "IEF": "2002-07-30", "VNQ": "2004-09-29",
-    "BIL": "2007-05-30",
+    "SPY": "1993-02-01", "VOO": "2010-09-09", "AGG": "2003-09-29",
+    "TLT": "2002-07-30", "GLD": "2004-11-18", "VTI": "2001-06-15",
+    "VXUS": "2011-01-28", "QQQ": "1999-03-10", "IEF": "2002-07-30",
+    "VNQ": "2004-09-29", "BIL": "2007-05-30",
 }
 
 

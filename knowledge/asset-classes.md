@@ -6,6 +6,12 @@ SPY tracks the S&P 500 index of roughly 500 large US companies. It is the classi
 "growth engine" of a portfolio: high expected return, high volatility, drawdowns beyond
 -50% in severe bear markets. Data in this tool covers 1993 to today.
 
+## VOO — S&P 500 (Vanguard)
+
+VOO is Vanguard's S&P 500 fund. It tracks the same index as SPY with a slightly lower
+expense ratio; the two are interchangeable for backtesting purposes. VOO data begins at
+its 2010 inception, so long backtests reaching further back should use SPY.
+
 ## VTI — US total stock market
 
 VTI holds nearly the entire investable US equity market, including mid and small caps.
