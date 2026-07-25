@@ -51,7 +51,7 @@ function sparkline(values, { width = 90, height = 28 } = {}) {
     `<path d="M ${pts.join(" L ")}" fill="none" stroke="${color}" stroke-width="1.5"></path></svg>`;
 }
 
-function drawChart(containerId, dates, values, { color, area = false, fmt, fmtAxis = fmt }) {
+function drawChart(containerId, dates, values, { color, area = false, fmt, fmtAxis = fmt, overlay = null }) {
   const container = $(containerId);
   container.innerHTML = "";
 
@@ -60,7 +60,8 @@ function drawChart(containerId, dates, values, { color, area = false, fmt, fmtAx
   const iw = W - pad.left - pad.right;
   const ih = H - pad.top - pad.bottom;
 
-  let min = Math.min(...values), max = Math.max(...values);
+  const scaleValues = overlay ? values.concat(overlay.values) : values;
+  let min = Math.min(...scaleValues), max = Math.max(...scaleValues);
   if (min === max) { min -= 1; max += 1; }
   const spread = max - min;
   min -= spread * 0.05; max += spread * 0.05;
@@ -81,6 +82,15 @@ function drawChart(containerId, dates, values, { color, area = false, fmt, fmtAx
   for (const i of [0, Math.floor(values.length / 2), values.length - 1]) {
     const anchor = i === 0 ? "start" : i === values.length - 1 ? "end" : "middle";
     svg.innerHTML += `<text class="axis-label" x="${x(i)}" y="${H - 6}" text-anchor="${anchor}">${dates[i]}</text>`;
+  }
+
+  // Benchmark sits behind the portfolio line, dashed so it reads as a reference.
+  if (overlay) {
+    const oPts = overlay.values.map((v, i) =>
+      `${(pad.left + (i / (overlay.values.length - 1)) * iw).toFixed(1)},${y(v).toFixed(1)}`);
+    svg.innerHTML +=
+      `<path d="M ${oPts.join(" L ")}" fill="none" stroke="${overlay.color}" stroke-width="1.75"` +
+      ` stroke-dasharray="5 4" opacity="0.9"></path>`;
   }
 
   const pts = values.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`);
@@ -307,20 +317,62 @@ function normalize() {
   updateTotal();
 }
 
-function renderMetrics(m) {
+const fmtYears = (days) => {
+  const years = days / 365.25;
+  return years >= 1 ? `${years.toFixed(1)} years` : `${Math.round(days / 30.4)} months`;
+};
+
+function renderMetrics(m, benchmark) {
   const negClass = (x) => (x < 0 ? " neg" : "");
-  $("metrics").innerHTML = [
+  const tiles = [
     ["CAGR", fmtPct(m.cagr), `${m.start} → ${m.end}`, negClass(m.cagr)],
+    ["Real CAGR", fmtPct(m.real_cagr), "after inflation", negClass(m.real_cagr)],
     ["Total return", fmtPct(m.total_return), "", negClass(m.total_return)],
     ["Volatility", fmtPct(m.volatility), "annualized", ""],
-    ["Sharpe", m.sharpe.toFixed(2), "rf = 0", ""],
+    ["Sharpe", m.sharpe.toFixed(2), `rf = ${fmtPct(m.risk_free_rate)}`, ""],
+    ["Sortino", m.sortino.toFixed(2), "downside risk only", ""],
+    ["Calmar", m.calmar.toFixed(2), "return vs drawdown", ""],
     ["Max drawdown", fmtPct(m.max_drawdown), "peak to trough", " neg"],
-  ].map(([label, value, sub, cls]) =>
+    ["Longest recovery", fmtYears(m.longest_drawdown_days), "below a prior peak", ""],
+  ];
+  if (benchmark) {
+    const diff = m.cagr - benchmark.metrics.cagr;
+    tiles.push(["vs S&P 500", `${diff >= 0 ? "+" : ""}${fmtPct(diff)}`,
+      `benchmark ${fmtPct(benchmark.metrics.cagr)} CAGR`, diff >= 0 ? " pos" : " neg"]);
+  }
+  $("metrics").innerHTML = tiles.map(([label, value, sub, cls]) =>
     `<div class="tile"><div class="label">${label}</div>` +
     `<div class="value${cls}">${value}</div>` +
     (sub ? `<div class="sub">${sub}</div>` : "") + `</div>`
   ).join("");
   $("metrics").hidden = false;
+}
+
+// Plain-English readout of the same numbers, for readers who don't live in finance.
+function renderPlainSummary(r) {
+  const m = r.metrics;
+  const grown = 10000 * (1 + m.total_return);
+  const real = 10000 * Math.pow(1 + m.real_cagr, (new Date(m.end) - new Date(m.start)) / 31557600000);
+  const parts = [
+    `<strong>$10,000</strong> invested on ${m.start} would have become ` +
+    `<strong>${fmtMoney(grown)}</strong> by ${m.end} — about <strong>${fmtMoney(real)}</strong> ` +
+    `in today's money once inflation (${fmtPct(m.inflation_rate)}/yr) is taken out.`,
+    `The worst stretch was a <strong>${fmtPct(Math.abs(m.max_drawdown))}</strong> fall, and it took ` +
+    `<strong>${fmtYears(m.longest_drawdown_days)}</strong> to climb back to the previous high.`,
+  ];
+  if (r.benchmark) {
+    const diff = m.cagr - r.benchmark.metrics.cagr;
+    parts.push(diff >= 0
+      ? `It grew <strong>${fmtPct(Math.abs(diff))}/yr faster</strong> than simply buying the S&P 500.`
+      : `Simply buying the S&P 500 would have grown <strong>${fmtPct(Math.abs(diff))}/yr faster</strong>, ` +
+        `though usually with bigger swings.`);
+  }
+  if (r.inflation_estimated) {
+    parts.push(`<span class="est-note">Inflation for the most recent period is estimated — ` +
+      `see data/cpi.json.</span>`);
+  }
+  $("plain-summary").innerHTML = parts.map((p) => `<p>${p}</p>`).join("");
+  $("plain-summary").hidden = false;
 }
 
 async function runBacktest() {
@@ -349,11 +401,18 @@ async function runBacktest() {
     });
 
     $("empty-state").hidden = true;
-    renderMetrics(r.metrics);
+    renderMetrics(r.metrics, r.benchmark);
+    renderPlainSummary(r);
     $("equity-panel").hidden = false;
     $("drawdown-panel").hidden = false;
-    drawChart("equity-chart", r.equity_curve.dates, r.equity_curve.values,
-      { color: cssVar("--series-1"), fmt: (v) => `$${v.toFixed(2)}` });
+    $("equity-legend").hidden = !r.benchmark;
+    drawChart("equity-chart", r.equity_curve.dates, r.equity_curve.values, {
+      color: cssVar("--series-1"),
+      fmt: (v) => `$${v.toFixed(2)}`,
+      overlay: r.benchmark
+        ? { values: r.benchmark.equity_curve.values, color: cssVar("--muted") }
+        : null,
+    });
     drawChart("drawdown-chart", r.drawdown.dates, r.drawdown.values,
       { color: cssVar("--series-8"), area: true, fmt: (v) => fmtPct(v) });
   } catch (e) {

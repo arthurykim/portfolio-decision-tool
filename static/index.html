@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Portfolio Decision Tool</title>
-  <link rel="stylesheet" href="/style.css?v=12" />
+  <link rel="stylesheet" href="/style.css?v=13" />
 </head>
 <body>
   <header class="topbar">
@@ -137,9 +137,16 @@
             <p id="error" class="error" role="alert" hidden></p>
           </aside>
           <div class="results">
+            <div id="plain-summary" class="panel plain-summary" hidden></div>
             <div id="metrics" class="metrics" hidden></div>
             <div class="panel chart-panel" id="equity-panel" hidden>
-              <h3>Growth of $1</h3>
+              <div class="chart-head">
+                <h3>Growth of $1</h3>
+                <div id="equity-legend" class="legend" hidden>
+                  <span class="key"><i class="swatch port"></i>Your allocation</span>
+                  <span class="key"><i class="swatch bench"></i>S&amp;P 500</span>
+                </div>
+              </div>
               <div id="equity-chart" class="chart"></div>
             </div>
             <div class="panel chart-panel" id="drawdown-panel" hidden>
@@ -238,8 +245,23 @@
           <p>How much daily returns swing, annualized. Stocks run ~15–20%, bonds ~4–6%.
           Higher volatility means a bumpier ride.</p></div>
         <div class="panel gloss"><h3>Sharpe ratio</h3>
-          <p>Return per unit of risk (CAGR ÷ volatility here). Above ~0.5 is decent for
-          a passive portfolio; above 1.0 over long periods is very good.</p></div>
+          <p>Return per unit of risk: return above the risk-free T-bill rate, divided by
+          volatility. Above ~0.5 is decent for a passive portfolio; above 1.0 over long
+          periods is very good.</p></div>
+        <div class="panel gloss"><h3>Sortino ratio</h3>
+          <p>Like Sharpe, but it only counts <em>downside</em> volatility. Sharpe punishes
+          big up-days as if they were risk; Sortino doesn't, so it better reflects the
+          losses investors actually mind.</p></div>
+        <div class="panel gloss"><h3>Calmar ratio</h3>
+          <p>Annual return divided by the worst drawdown. It answers "how much growth did
+          I get for the deepest loss I had to sit through?"</p></div>
+        <div class="panel gloss"><h3>Real CAGR</h3>
+          <p>Growth after inflation — what the money is actually worth in today's dollars.
+          A 9% return in a 6% inflation year is only about 3% of real progress.</p></div>
+        <div class="panel gloss"><h3>Longest recovery</h3>
+          <p>The longest time spent below a previous peak. Depth of a crash is one thing;
+          how many years you wait to break even is often what decides whether people
+          stick with a strategy.</p></div>
         <div class="panel gloss"><h3>Max drawdown</h3>
           <p>The worst peak-to-trough loss in the period — what you'd have lost buying at
           the worst top. Deep drawdowns are where investors give up.</p></div>
@@ -270,6 +292,6 @@
     Nothing here is investment advice. Market data via Yahoo Finance, delayed.
   </footer>
 
-  <script src="/app.js?v=12"></script>
+  <script src="/app.js?v=13"></script>
 </body>
 </html>
