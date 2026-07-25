@@ -128,9 +128,21 @@ task deploy:aws       # ECR push + App Runner create/redeploy
 
 - Prices are Yahoo Finance adjusted daily closes (dividends included via
   adjustment), delayed ~15 minutes.
-- Backtests assume daily rebalancing, no fees, taxes, or slippage; Sharpe uses
-  a 0% risk-free rate. Windows clip to the overlapping history of the selected
-  tickers (e.g. VXUS data starts in 2011).
+- Backtests assume daily rebalancing and no fees, taxes, or slippage. Daily
+  rebalancing slightly overstates the rebalancing bonus versus the monthly or
+  quarterly cadence most investors actually use.
+- Sharpe and Sortino subtract a real risk-free rate derived from BIL (1–3 month
+  T-bills) over the same window, not an assumed 0%. Windows that predate BIL's
+  2007 inception fall back to 0%.
+- Real returns use BLS CPI-U annual averages (`data/cpi.json`). Values are
+  verified through the year recorded in that file; later periods are estimated,
+  and the UI labels results as such.
+- Windows clip to the overlapping history of the selected tickers (e.g. VXUS
+  data starts in 2011).
+- **Known limitation — survivorship bias:** the stock catalog is the *current*
+  S&P 500 membership, so companies that were delisted or went bankrupt are
+  absent. Any analysis built on today's constituents is biased upward relative
+  to what an investor would actually have experienced.
 - `data/market_snapshot.json` is refreshed hourly by CI and doubles as a
   public, versioned record of the dashboard numbers.
 
