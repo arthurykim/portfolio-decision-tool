@@ -27,7 +27,7 @@ aws apprunner update-service --service-arn <arn> \
   --source-configuration '{"ImageRepository": {"ImageIdentifier": "<ecr>:latest",
     "ImageRepositoryType": "ECR",
     "ImageConfiguration": {"Port": "8000",
-      "RuntimeEnvironmentVariables": {"ANTHROPIC_API_KEY": "sk-ant-..."}}}}'
+      "RuntimeEnvironmentVariables": {"GOOGLE_API_KEY": "your-gemini-key"}}}}'
 ```
 
 (For production, prefer referencing an AWS Secrets Manager secret via
@@ -52,8 +52,8 @@ az containerapp show -n portfolio-decision-tool -g pdt-rg \
   --query properties.configuration.ingress.fqdn -o tsv
 ```
 
-Add `ANTHROPIC_API_KEY` with `az containerapp secret set` +
-`--env-vars ANTHROPIC_API_KEY=secretref:anthropic-key` to enable the chat
+Add `GOOGLE_API_KEY` with `az containerapp secret set` +
+`--env-vars GOOGLE_API_KEY=secretref:gemini-key` to enable the chat
 assistant.
 
 ## Environment variables
@@ -62,7 +62,7 @@ assistant.
 |---|---|
 | `SECRET_KEY` | Signs session cookies. **Set a long random value in production** (`openssl rand -hex 32`); without it sessions reset on every restart. |
 | `COOKIE_SECURE` | Set to `1` behind HTTPS (App Runner / Container Apps) so session cookies are Secure-only. |
-| `ANTHROPIC_API_KEY` | Enables Claude-generated chat answers (optional). |
+| `GOOGLE_API_KEY` | Enables Gemini-generated chat answers (optional). |
 | `CACHE_MAX_AGE` | Price cache TTL in seconds (default 3600). |
 | `DB_PATH` | SQLite location (default `db/app.db`). |
 
@@ -76,7 +76,7 @@ feature is light; when accounts matter, point `DB_PATH` at a mounted volume
 - The container starts with an empty price cache; the first request downloads
   ~10 ticker histories from Yahoo Finance (10–20 s), then everything is cached
   and refreshed hourly (`CACHE_MAX_AGE`, seconds).
-- Without `ANTHROPIC_API_KEY` the chat assistant still works in extractive
+- Without `GOOGLE_API_KEY` the chat assistant still works in extractive
   mode (returns the top knowledge-base passage verbatim).
 - The container is stateless — no database. Scale-out is safe; each instance
   keeps its own price cache.

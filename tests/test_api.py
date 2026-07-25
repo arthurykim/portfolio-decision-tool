@@ -151,7 +151,7 @@ def test_chat_returns_answer_and_sources():
     r = client.post("/api/chat", json={"message": "What is max drawdown?"})
     assert r.status_code == 200
     body = r.json()
-    assert body["mode"] in ("claude", "extractive")
+    assert body["mode"] in ("gemini", "extractive")
     assert "drawdown" in body["answer"].lower()
     assert any(s["source"] == "metrics.md" for s in body["sources"])
 

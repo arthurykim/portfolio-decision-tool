@@ -39,7 +39,7 @@ tasks:
       - "{{.PY}} scripts/refresh_market.py"
 
   eval:
-    desc: Run the RAGAS evaluation (needs ANTHROPIC_API_KEY)
+    desc: Run the RAGAS evaluation (needs GOOGLE_API_KEY)
     cmds:
       # Isolated venv: ragas pins an older langchain stack than the app uses.
       # Derived from the app venv's interpreter so binary wheels resolve.

@@ -1,8 +1,8 @@
 """RAGAS evaluation of the chat assistant against the golden Q&A set.
 
-Requires an Anthropic API key and the eval extras:
+Requires a Gemini API key (GOOGLE_API_KEY in .env) and the eval extras:
     pip install -r eval/requirements-eval.txt
-    ANTHROPIC_API_KEY=... python eval/ragas_eval.py
+    python eval/ragas_eval.py
 
 Metrics (LLM-judged, no embedding model needed):
     faithfulness       — is the answer grounded in the retrieved contexts?
@@ -19,12 +19,12 @@ from env import load_env  # noqa: E402
 
 load_env()
 
-from langchain_anthropic import ChatAnthropic  # noqa: E402
+from langchain_google_genai import ChatGoogleGenerativeAI  # noqa: E402
 from ragas import EvaluationDataset, evaluate  # noqa: E402
 from ragas.llms import LangchainLLMWrapper  # noqa: E402
 from ragas.metrics import context_precision, context_recall, faithfulness  # noqa: E402
 
-from rag import answer, retrieve  # noqa: E402
+from rag import MODEL, answer, retrieve  # noqa: E402
 
 GOLDEN = Path(__file__).parent / "golden_qa.jsonl"
 RESULTS = Path(__file__).parent / "results.json"
@@ -35,8 +35,8 @@ def build_dataset() -> EvaluationDataset:
     for line in GOLDEN.read_text().splitlines():
         case = json.loads(line)
         result = answer(case["question"])
-        if result["mode"] != "claude":
-            sys.exit("ANTHROPIC_API_KEY required: assistant is in extractive mode")
+        if result["mode"] != "gemini":
+            sys.exit("GOOGLE_API_KEY required: assistant is in extractive mode")
         contexts = [p["text"] for p in retrieve(case["question"], k=4)]
         rows.append({
             "user_input": case["question"],
@@ -52,7 +52,7 @@ def main() -> None:
     print(f"Building dataset from {GOLDEN.name} ...")
     dataset = build_dataset()
 
-    judge = LangchainLLMWrapper(ChatAnthropic(model="claude-opus-5", max_tokens=2048))
+    judge = LangchainLLMWrapper(ChatGoogleGenerativeAI(model=MODEL, max_output_tokens=2048))
     print("Scoring with RAGAS ...")
     scores = evaluate(
         dataset=dataset,

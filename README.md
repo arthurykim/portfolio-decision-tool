@@ -40,8 +40,8 @@ data, and learn the concepts as you go — in one self-contained web app.
   Every run is also summarized in plain English for non-finance readers.
 - **RAG chat assistant** — asks-anything box over a curated finance knowledge
   base (metrics, asset classes, strategies, market history) using BM25
-  retrieval. With an `ANTHROPIC_API_KEY` it generates grounded answers with
-  Claude; without one it falls back to returning the best-matching passage.
+  retrieval. With a free `GOOGLE_API_KEY` it writes grounded answers with
+  Gemini; without one it falls back to returning the best-matching passage.
   Answer quality is measured with a [RAGAS](https://docs.ragas.io) harness.
 
 ## Architecture
@@ -97,8 +97,11 @@ then everything is cached and auto-refreshed hourly.
 
 ### Enable the AI assistant (optional)
 
+Copy `.env.example` to `.env` and add a free
+[Gemini key](https://aistudio.google.com/apikey):
+
 ```bash
-export ANTHROPIC_API_KEY=sk-ant-...
+cp .env.example .env      # then set GOOGLE_API_KEY=... in .env
 task dev
 ```
 
@@ -109,13 +112,13 @@ Without a key the chat still answers from the knowledge base in extractive mode.
 ```bash
 task test            # 57 unit + API tests; hermetic (synthetic data if no cache)
 task eval:retrieval  # retrieval quality — no API key needed
-task eval            # RAGAS generation quality (needs ANTHROPIC_API_KEY)
+task eval            # RAGAS generation quality (needs GOOGLE_API_KEY)
 ```
 
 ### Retrieval quality
 
 The RAG pipeline splits into a **retrieval** half (BM25 over 9 knowledge files →
-61 section-level chunks) and a **generation** half (Claude). Retrieval runs
+61 section-level chunks) and a **generation** half (Gemini). Retrieval runs
 entirely locally, so its quality is measurable offline at zero cost — scored
 against a 16-question golden set with the expected source file labelled:
 
@@ -138,7 +141,7 @@ Reproduce with `task eval:retrieval`; per-question detail is written to
 
 `task eval` runs [RAGAS](https://docs.ragas.io) over the same golden set,
 scoring faithfulness (is the answer grounded in the retrieved passages?),
-context precision, and context recall. It needs an `ANTHROPIC_API_KEY` because
+context precision, and context recall. It needs a `GOOGLE_API_KEY` because
 it uses an LLM as judge, and writes to `eval/results.json`.
 
 ## Deployment
@@ -179,7 +182,7 @@ task deploy:aws       # ECR push + App Runner create/redeploy
 | `main.py` | FastAPI app: API routes + static serving |
 | `data.py` | Price download, parquet cache, period returns |
 | `backtest.py` | Backtest engine and metrics |
-| `rag.py` | BM25 index + optional Claude generation |
+| `rag.py` | BM25 index + optional Gemini generation |
 | `knowledge/` | Finance knowledge base + Learn articles (9 markdown files) |
 | `static/` | Frontend (HTML/CSS/JS, no framework) |
 | `db.py` / `auth.py` | SQLite persistence + stdlib session auth |

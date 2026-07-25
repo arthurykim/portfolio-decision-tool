@@ -35,7 +35,7 @@ def test_retrieve_returns_scores_descending():
 
 
 def test_answer_extractive_mode_without_credentials(monkeypatch):
-    monkeypatch.setattr("rag._claude_available", lambda: False)
+    monkeypatch.setattr("rag._llm_available", lambda: False)
     a = answer("what is volatility?")
     assert a["mode"] == "extractive"
     assert "volatility" in a["answer"].lower()
@@ -43,7 +43,7 @@ def test_answer_extractive_mode_without_credentials(monkeypatch):
 
 
 def test_answer_handles_nonsense_query(monkeypatch):
-    monkeypatch.setattr("rag._claude_available", lambda: False)
+    monkeypatch.setattr("rag._llm_available", lambda: False)
     a = answer("zzzz qqqq xyzzy")
     assert a["mode"] == "extractive"
     assert a["sources"] == []

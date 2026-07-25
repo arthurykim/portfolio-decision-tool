@@ -18,5 +18,7 @@ def load_env(path: Path = ENV_FILE) -> None:
         key, value = line.split("=", 1)
         key = key.strip()
         value = value.strip().strip('"').strip("'")
-        if key and key not in os.environ:
+        # A blank value means "not set" — exporting "" would break callers that
+        # do int(os.environ.get(NAME, default)), since the default never applies.
+        if key and value and key not in os.environ:
             os.environ[key] = value
