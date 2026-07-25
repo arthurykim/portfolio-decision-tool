@@ -8,6 +8,8 @@ data, and learn the concepts as you go — in one self-contained web app.
 
 **Educational tool only. Nothing here is investment advice.**
 
+![Portfolio Decision Tool — market dashboard](docs/img/dashboard.png)
+
 ## Features
 
 - **Market dashboard** — live-ish prices and returns for 11 major ETFs (SPY,
@@ -43,6 +45,24 @@ data, and learn the concepts as you go — in one self-contained web app.
   retrieval. With a free `GOOGLE_API_KEY` it writes grounded answers with
   Gemini; without one it falls back to returning the best-matching passage.
   Answer quality is measured with a [RAGAS](https://docs.ragas.io) harness.
+
+## Screenshots
+
+**Backtest lab** — the All Weather portfolio run against the S&P 500, with the
+plain-English summary, full risk panel (CAGR, real CAGR, Sharpe, Sortino,
+Calmar, max drawdown, longest recovery), growth-of-$1 curve, and drawdown chart:
+
+![Backtest lab](docs/img/backtest.png)
+
+**RAG assistant** — a grounded answer drawn from the knowledge base, with the
+retrieved source passages cited beneath it:
+
+![RAG assistant](docs/img/assistant.png)
+
+**Learn** — original explainer articles with custom illustrations, plus a
+"where to start" panel of brokerage links:
+
+![Learn tab](docs/img/learn.png)
 
 ## Architecture
 
