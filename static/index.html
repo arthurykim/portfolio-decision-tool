@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Portfolio Decision Tool</title>
-  <link rel="stylesheet" href="/style.css?v=13" />
+  <link rel="stylesheet" href="/style.css?v=15" />
 </head>
 <body>
   <header class="topbar">
@@ -102,6 +102,30 @@
 
         <h3 class="subhead">Recent tech IPOs</h3>
         <div id="ipo-strip" class="ipo-strip"></div>
+
+        <!-- Stock detail, shown when a symbol is clicked -->
+        <div id="stock-detail" class="panel detail-panel" hidden>
+          <div class="detail-head">
+            <div class="detail-id">
+              <span id="detail-symbol" class="detail-symbol"></span>
+              <span id="detail-name" class="detail-name"></span>
+              <span id="detail-sector" class="detail-sector"></span>
+            </div>
+            <div class="detail-actions">
+              <button id="detail-refresh" class="btn ghost" type="button" title="Fetch the latest data">↻ Refresh</button>
+              <button id="detail-close" class="btn ghost" type="button">✕ Close</button>
+            </div>
+          </div>
+          <div class="detail-price">
+            <span id="detail-last" class="detail-last"></span>
+            <span id="detail-change" class="detail-change"></span>
+            <span id="detail-fetched" class="fineprint"></span>
+          </div>
+          <div id="detail-ranges" class="tabs" role="tablist"></div>
+          <div id="detail-chart" class="chart"></div>
+          <div id="detail-stats" class="detail-stats"></div>
+          <div id="detail-news" class="detail-news"></div>
+        </div>
 
         <h3 class="subhead" id="table-title">S&amp;P 500</h3>
         <div class="panel table-panel">
@@ -292,6 +316,6 @@
     Nothing here is investment advice. Market data via Yahoo Finance, delayed.
   </footer>
 
-  <script src="/app.js?v=13"></script>
+  <script src="/app.js?v=15"></script>
 </body>
 </html>

@@ -22,6 +22,11 @@ data, and learn the concepts as you go — in one self-contained web app.
 - **Stocks** — paginated, searchable S&P 500 catalog (503 constituents across
   11 pages) plus a curated recent-tech-IPO strip, all with live quotes. Sign in
   to pin stocks to a personal watchlist.
+- **Stock detail** — click any symbol (table, movers, or watchlist) for a price
+  chart across **1D / 1W / 1M / 6M / YTD / 1Y / 5Y / MAX**, open/high/low/volume
+  stats, recent headlines linking to the publisher, and a refresh button.
+  History is fetched **on demand** rather than stored — 500 symbols × 8 ranges
+  would be gigabytes that go stale hourly — with a 5-minute in-process cache.
 - **Learn** — original explainer articles (What are ETFs? · What are index
   funds? · Retirement accounts: 401(k)/Traditional IRA/Roth IRA · Taxable vs.
   tax-advantaged), reachable from a nav dropdown or tile grid, plus a
@@ -80,6 +85,8 @@ retrieved source passages cited beneath it:
 │  ├── /api/backtest       allocation backtest (backtest.py)           │
 │  ├── /api/chat           RAG assistant (rag.py + knowledge/*.md)     │
 │  ├── /api/stocks/quotes  quotes for catalog symbols                  │
+│  ├── /api/stocks/:s/history  on-demand OHLC by range                 │
+│  ├── /api/stocks/:s/news     headlines (metadata + publisher link)   │
 │  ├── /api/auth/*         register / login / logout (auth.py)         │
 │  ├── /api/watchlist      per-user pinned stocks (db.py, SQLite)      │
 │  ├── /api/about          editable site content (admin)               │

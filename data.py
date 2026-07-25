@@ -252,6 +252,122 @@ def get_stock_quotes(symbols: list[str]) -> list[dict]:
         return [_stock_cache[s][1] for s in symbols if s in _stock_cache]
 
 
+# Ranges for the stock detail chart. yfinance period/interval pairs are chosen so
+# short windows get intraday candles and long ones get daily bars.
+STOCK_RANGES = {
+    "1D":  ("1d",  "5m"),
+    "1W":  ("5d",  "30m"),
+    "1M":  ("1mo", "1d"),
+    "6M":  ("6mo", "1d"),
+    "YTD": ("ytd", "1d"),
+    "1Y":  ("1y",  "1d"),
+    "5Y":  ("5y",  "1wk"),
+    "MAX": ("max", "1mo"),
+}
+
+_history_cache: dict[tuple[str, str], tuple[float, dict]] = {}
+_history_lock = threading.Lock()
+HISTORY_TTL = 300
+
+
+def stock_history(symbol: str, range_key: str = "1Y", refresh: bool = False) -> dict:
+    """OHLC history + summary stats for one symbol, fetched on demand.
+
+    Deliberately not persisted: storing 500 tickers x 8 ranges would be gigabytes
+    of data that goes stale hourly. Yahoo is the source of truth; we keep a short
+    in-process cache so repeated views and range flips stay fast.
+    """
+    symbol, range_key = symbol.upper(), range_key.upper()
+    if range_key not in STOCK_RANGES:
+        raise ValueError(f"Unknown range {range_key}")
+
+    key = (symbol, range_key)
+    now = time.time()
+    if not refresh:
+        with _history_lock:
+            hit = _history_cache.get(key)
+            if hit and now - hit[0] < HISTORY_TTL:
+                return hit[1]
+
+    period, interval = STOCK_RANGES[range_key]
+    df = yf.download(symbol, period=period, interval=interval,
+                     auto_adjust=True, progress=False)
+    if df.empty:
+        raise ValueError(f"No data returned for {symbol}")
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = df.columns.get_level_values(0)
+    df = df.dropna(subset=["Close"])
+    if df.empty:
+        raise ValueError(f"No usable closes for {symbol}")
+
+    closes = df["Close"].astype(float)
+    first, last = float(closes.iloc[0]), float(closes.iloc[-1])
+    intraday = interval.endswith(("m", "h"))
+    payload = {
+        "symbol": symbol,
+        "range": range_key,
+        "interval": interval,
+        "points": [
+            {
+                "t": idx.isoformat() if intraday else idx.date().isoformat(),
+                "c": round(float(c), 4),
+            }
+            for idx, c in closes.items()
+        ],
+        "stats": {
+            "price": round(last, 2),
+            "change": round(last - first, 2),
+            "change_pct": round((last / first - 1) * 100, 2) if first else 0.0,
+            "high": round(float(closes.max()), 2),
+            "low": round(float(closes.min()), 2),
+            "open": round(first, 2),
+            "volume": int(df["Volume"].sum()) if "Volume" in df else None,
+            "points": len(closes),
+        },
+        "fetched_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now)),
+    }
+    with _history_lock:
+        _history_cache[key] = (now, payload)
+    return payload
+
+
+_news_cache: dict[str, tuple[float, list]] = {}
+NEWS_TTL = 900
+
+
+def stock_news(symbol: str, limit: int = 8) -> list[dict]:
+    """Recent headlines for a symbol: title, publisher, timestamp, link.
+
+    Only metadata and the publisher's own link are stored or shown — never
+    article text — so readers land on the original source.
+    """
+    symbol = symbol.upper()
+    now = time.time()
+    with _history_lock:
+        hit = _news_cache.get(symbol)
+        if hit and now - hit[0] < NEWS_TTL:
+            return hit[1][:limit]
+
+    items = []
+    for raw in yf.Ticker(symbol).news or []:
+        c = raw.get("content", raw)
+        provider = c.get("provider")
+        canonical = c.get("canonicalUrl") or c.get("clickThroughUrl") or {}
+        url = canonical.get("url") if isinstance(canonical, dict) else c.get("link")
+        if not url or not c.get("title"):
+            continue
+        items.append({
+            "title": str(c["title"])[:200],
+            "publisher": (provider.get("displayName") if isinstance(provider, dict)
+                          else c.get("publisher")) or "Unknown",
+            "published": c.get("pubDate") or c.get("displayTime") or "",
+            "url": url,
+        })
+    with _history_lock:
+        _news_cache[symbol] = (now, items)
+    return items[:limit]
+
+
 _movers_cache: tuple[float, dict] | None = None
 
 

@@ -638,10 +638,17 @@ function renderStockTable() {
     `${matches.length}${q ? " matches" : " companies"} · page ${tablePage} of ${totalPages}`;
 
   $("stock-rows").innerHTML = shown.map((s) =>
-    `<tr><td>${pinButton(s.symbol)}</td><td class="sym">${s.symbol}</td>` +
+    `<tr data-symbol="${s.symbol}"><td>${pinButton(s.symbol)}</td>` +
+    `<td class="sym">${s.symbol}</td>` +
     `<td>${s.name}</td><td class="sector">${s.sector}</td>${quoteCells(s.symbol)}</tr>`
   ).join("");
   bindPinButtons($("stock-rows"));
+  for (const row of $("stock-rows").rows) {
+    row.addEventListener("click", (e) => {
+      if (e.target.closest(".pin-btn")) return;  // pinning is not navigation
+      openStock(row.dataset.symbol);
+    });
+  }
 
   // Load prices for the visible rows, debounced so typing doesn't spam fetches.
   clearTimeout(quoteTimer);
@@ -691,8 +698,12 @@ async function renderWatchStrip() {
   $("watch-strip").innerHTML = state.watchlist.map((sym) =>
     miniCard(sym, names[sym] || (state.quotes[sym] && state.quotes[sym].name) || "", "", true)).join("");
   for (const btn of $("watch-strip").querySelectorAll(".unpin")) {
-    btn.addEventListener("click", () => togglePin(btn.dataset.symbol));
+    btn.addEventListener("click", (e) => { e.stopPropagation(); togglePin(btn.dataset.symbol); });
   }
+  $("watch-strip").querySelectorAll(".mini-card").forEach((card, i) => {
+    card.style.cursor = "pointer";
+    card.addEventListener("click", () => openStock(state.watchlist[i]));
+  });
 }
 
 async function refreshWatchlist() {
@@ -712,11 +723,103 @@ function avatar(symbol) {
   return `<span class="avatar" style="--h:${h}">${symbol.slice(0, 2)}</span>`;
 }
 
+// ---------------------------------------------------------------- stock detail
+const detail = { symbol: null, range: "1Y" };
+
+function renderDetailRanges(ranges) {
+  const tabs = $("detail-ranges");
+  tabs.innerHTML = "";
+  for (const r of ranges) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "tab" + (r === detail.range ? " active" : "");
+    b.textContent = r;
+    b.addEventListener("click", () => openStock(detail.symbol, r));
+    tabs.appendChild(b);
+  }
+}
+
+async function openStock(symbol, range = detail.range, refresh = false) {
+  detail.symbol = symbol;
+  detail.range = range;
+  const panel = $("stock-detail");
+  panel.hidden = false;
+  $("detail-symbol").textContent = symbol;
+  $("detail-chart").innerHTML = `<p class="fineprint">Loading ${range}…</p>`;
+  panel.scrollIntoView({ block: "start", behavior: "smooth" });
+
+  try {
+    const q = `range=${range}${refresh ? "&refresh=true" : ""}`;
+    const d = await api(`/api/stocks/${symbol}/history?${q}`);
+    detail.range = d.range;
+    renderDetailRanges(d.ranges);
+
+    $("detail-name").textContent = d.name;
+    $("detail-sector").textContent = d.sector || "";
+    $("detail-sector").hidden = !d.sector;
+    $("detail-last").textContent = `$${d.stats.price.toFixed(2)}`;
+
+    const up = d.stats.change >= 0;
+    const chg = $("detail-change");
+    chg.className = "detail-change " + (up ? "up" : "down");
+    chg.textContent =
+      `${up ? "+" : ""}${d.stats.change.toFixed(2)} (${up ? "+" : ""}${d.stats.change_pct.toFixed(2)}%) ${d.range}`;
+    $("detail-fetched").textContent = `as of ${d.fetched_at.replace("T", " ")} · ${d.interval} bars`;
+
+    const labels = d.points.map((p) => p.t.slice(0, 10));
+    drawChart("detail-chart", labels, d.points.map((p) => p.c), {
+      color: cssVar(up ? "--delta-up" : "--series-8"),
+      area: true,
+      fmt: (v) => `$${v.toFixed(2)}`,
+    });
+
+    const vol = d.stats.volume;
+    $("detail-stats").innerHTML = [
+      ["Open", `$${d.stats.open.toFixed(2)}`],
+      ["High", `$${d.stats.high.toFixed(2)}`],
+      ["Low", `$${d.stats.low.toFixed(2)}`],
+      ["Volume", vol ? vol.toLocaleString("en-US", { notation: "compact" }) : "—"],
+      ["Points", d.stats.points],
+    ].map(([k, v]) => `<div class="s"><span class="k">${k}</span><span class="v">${v}</span></div>`).join("");
+    loadStockNews(symbol);
+  } catch (e) {
+    $("detail-chart").innerHTML = `<p class="error">Couldn't load ${symbol}: ${e.message}</p>`;
+  }
+}
+
+async function loadStockNews(symbol) {
+  const box = $("detail-news");
+  box.innerHTML = `<h4>Latest news</h4><p class="fineprint">Loading…</p>`;
+  try {
+    const r = await api(`/api/stocks/${symbol}/news?limit=6`);
+    if (!r.items.length) {
+      box.innerHTML = `<h4>Latest news</h4><p class="fineprint">No recent headlines.</p>`;
+      return;
+    }
+    box.innerHTML = `<h4>Latest news</h4>` + r.items.map((n) => {
+      const when = n.published ? new Date(n.published).toLocaleDateString() : "";
+      return `<a class="news-item" href="${n.url}" target="_blank" rel="noopener noreferrer">` +
+        `<span class="news-title">${n.title}</span>` +
+        `<span class="news-meta">${n.publisher}${when ? " · " + when : ""}</span></a>`;
+    }).join("") +
+    `<p class="fineprint">Headlines and links via Yahoo Finance; articles open at the publisher.</p>`;
+  } catch {
+    box.innerHTML = `<h4>Latest news</h4><p class="fineprint">News unavailable right now.</p>`;
+  }
+}
+
+function initStockDetail() {
+  $("detail-close").addEventListener("click", () => { $("stock-detail").hidden = true; });
+  $("detail-refresh").addEventListener("click", () => {
+    if (detail.symbol) openStock(detail.symbol, detail.range, true);
+  });
+}
+
 // ---------------------------------------------------------------- movers
 async function loadMovers() {
   const row = (q) => {
     const up = q.change_pct >= 0;
-    return `<div class="mover-row">${avatar(q.symbol)}<span class="sym">${q.symbol}</span>` +
+    return `<div class="mover-row" data-symbol="${q.symbol}">${avatar(q.symbol)}<span class="sym">${q.symbol}</span>` +
       `<span class="nm">${q.name}</span><span class="px">$${q.price.toFixed(2)}</span>` +
       `<span class="badge ${up ? "up" : "down"}">${up ? "+" : ""}${q.change_pct.toFixed(2)}%</span></div>`;
   };
@@ -724,6 +827,13 @@ async function loadMovers() {
     const m = await api("/api/stocks/movers");
     $("movers-up").innerHTML = m.gainers.map(row).join("");
     $("movers-down").innerHTML = m.losers.map(row).join("");
+    for (const el of document.querySelectorAll(".mover-row[data-symbol]")) {
+      el.style.cursor = "pointer";
+      el.addEventListener("click", () => {
+        location.hash = "stocks";
+        openStock(el.dataset.symbol);
+      });
+    }
   } catch {
     const note = "Movers unavailable right now.";
     $("movers-up").textContent = note;

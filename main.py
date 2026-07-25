@@ -25,8 +25,8 @@ from auth import (
 from backtest import run_backtest
 from data import (
     RANGES, TICKERS, annualized_inflation, get_movers, get_stock_quotes,
-    index_history, load_universe, members_on, period_returns, risk_free_rate,
-    stock_catalog, survivorship_gap,
+    STOCK_RANGES, index_history, load_universe, members_on, period_returns,
+    risk_free_rate, stock_catalog, stock_history, stock_news, survivorship_gap,
 )
 from observability import metrics, new_request_id, request_id_var, setup_logging
 from rag import _llm_available as llm_available, answer as rag_answer, get_index
@@ -375,6 +375,49 @@ def stock_quotes(symbols: str = Query(..., max_length=400)):
     for q in quotes:
         q["name"] = catalog[q["symbol"]]["name"]
     return quotes
+
+
+@app.get("/api/stocks/{symbol}/history")
+def stock_detail(symbol: str, range: str = Query("1Y"), refresh: bool = False):
+    """Price history and summary stats for one stock, fetched on demand.
+
+    Not stored: 500 symbols x 8 ranges would be gigabytes that go stale hourly.
+    """
+    symbol = symbol.upper()
+    catalog = stock_catalog()
+    if symbol not in catalog and symbol not in TICKERS:
+        raise HTTPException(status_code=404, detail=f"Unknown symbol {symbol}")
+    if range.upper() not in STOCK_RANGES:
+        raise HTTPException(
+            status_code=422,
+            detail=f"range must be one of {', '.join(STOCK_RANGES)}",
+        )
+    try:
+        payload = stock_history(symbol, range, refresh=refresh)
+    except ValueError as exc:
+        metrics.inc("stock_history_errors_total", {"symbol": symbol})
+        raise HTTPException(status_code=503, detail=str(exc))
+    payload["name"] = catalog.get(symbol, {}).get("name") or TICKERS.get(symbol, symbol)
+    payload["sector"] = catalog.get(symbol, {}).get("sector", "")
+    payload["ranges"] = list(STOCK_RANGES)
+    metrics.inc("stock_history_total", {"range": range.upper()})
+    return payload
+
+
+@app.get("/api/stocks/{symbol}/news")
+def stock_news_feed(symbol: str, limit: int = Query(8, ge=1, le=20)):
+    """Recent headlines. Metadata and publisher links only — no article text."""
+    symbol = symbol.upper()
+    if symbol not in stock_catalog() and symbol not in TICKERS:
+        raise HTTPException(status_code=404, detail=f"Unknown symbol {symbol}")
+    try:
+        items = stock_news(symbol, limit=limit)
+    except Exception as exc:
+        logger.warning("News fetch failed for %s: %s", symbol, exc)
+        metrics.inc("news_errors_total")
+        return {"symbol": symbol, "items": [], "error": "News unavailable"}
+    metrics.inc("news_requests_total")
+    return {"symbol": symbol, "items": items}
 
 
 @app.get("/api/stocks/movers")

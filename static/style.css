@@ -344,6 +344,39 @@ a.learn-tile { text-decoration: none; }
 }
 .mini-card .unpin:hover { color: var(--delta-down); }
 
+/* Stock detail */
+.detail-panel { margin-bottom: 14px; }
+.detail-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.detail-id { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.detail-symbol { font-size: 22px; font-weight: 800; }
+.detail-name { color: var(--text-secondary); font-size: 14px; }
+.detail-sector { color: var(--muted); font-size: 11.5px; border: 1px solid var(--border); border-radius: 999px; padding: 2px 9px; }
+.detail-actions { display: flex; gap: 6px; }
+.detail-actions .btn { margin-top: 0; }
+.detail-price { display: flex; align-items: baseline; gap: 12px; margin: 8px 0 12px; flex-wrap: wrap; }
+.detail-last { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.detail-change { font-size: 15px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.detail-change.up { color: var(--delta-up); }
+.detail-change.down { color: var(--delta-down); }
+.detail-stats {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--grid);
+}
+.detail-stats .s { display: flex; flex-direction: column; gap: 2px; }
+.detail-stats .s .k { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+.detail-stats .s .v { font-size: 14px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.detail-news { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--grid); }
+.detail-news h4 { margin: 0 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-secondary); }
+.news-item { display: block; padding: 8px 0; border-bottom: 1px solid var(--grid); text-decoration: none; color: inherit; }
+.news-item:last-child { border-bottom: 0; }
+.news-item:hover .news-title { color: var(--accent); }
+.news-title { display: block; font-size: 13.5px; line-height: 1.45; }
+.news-meta { display: block; margin-top: 3px; color: var(--muted); font-size: 11.5px; }
+
+.stock-table tbody tr { cursor: pointer; }
+.stock-table tbody tr:hover { background: var(--page); }
+.stock-table .sym { color: var(--accent); }
+
 .table-panel { padding: 6px 16px; overflow-x: auto; }
 .stock-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 .stock-table th, .stock-table td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--grid); }
