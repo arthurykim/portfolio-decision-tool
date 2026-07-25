@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Portfolio Decision Tool</title>
-  <link rel="stylesheet" href="/style.css?v=5" />
+  <link rel="stylesheet" href="/style.css?v=8" />
 </head>
 <body>
   <header class="topbar">
@@ -17,6 +17,10 @@
         <a href="#markets" data-view="markets">Markets</a>
         <a href="#stocks" data-view="stocks">Stocks</a>
         <a href="#backtest" data-view="backtest">Backtest</a>
+        <div class="nav-drop">
+          <a href="#learn" data-view="learn">Learn ▾</a>
+          <div class="drop-menu" id="learn-menu"></div>
+        </div>
         <a href="#assistant" data-view="assistant">Assistant</a>
         <a href="#about" data-view="about">About</a>
       </nav>
@@ -43,6 +47,17 @@
             <span id="chart-change" class="chart-change"></span>
           </div>
           <div id="main-chart" class="chart"></div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-head">
+          <h2>Today's movers</h2>
+          <span id="movers-note" class="fineprint">S&amp;P 500 · 1-day change</span>
+        </div>
+        <div class="movers-grid">
+          <div class="panel"><h3>Top risers</h3><div id="movers-up" class="mover-list">Loading…</div></div>
+          <div class="panel"><h3>Top fallers</h3><div id="movers-down" class="mover-list">Loading…</div></div>
         </div>
       </section>
 
@@ -139,6 +154,40 @@
       </section>
     </div>
 
+    <!-- ============== Learn ============== -->
+    <div class="view" data-view="learn" hidden>
+      <section class="section">
+        <div class="section-head">
+          <h2 id="learn-title">Learn</h2>
+          <button id="learn-back" class="btn ghost" type="button" hidden>← All topics</button>
+        </div>
+        <div id="learn-tiles" class="learn-grid"></div>
+        <div id="learn-article" class="panel about-content" hidden></div>
+
+        <div id="learn-start">
+          <h3 class="subhead">Where to start (external links)</h3>
+          <div class="learn-grid">
+            <a class="learn-tile" href="https://www.fidelity.com" target="_blank" rel="noopener noreferrer">
+              <h3>Fidelity</h3><p>Full-service brokerage with no-minimum index funds and retirement accounts.</p><span class="read">fidelity.com →</span></a>
+            <a class="learn-tile" href="https://investor.vanguard.com" target="_blank" rel="noopener noreferrer">
+              <h3>Vanguard</h3><p>The company that invented the index fund; runs VOO, VTI, and VXUS.</p><span class="read">vanguard.com →</span></a>
+            <a class="learn-tile" href="https://www.schwab.com" target="_blank" rel="noopener noreferrer">
+              <h3>Charles Schwab</h3><p>Broad brokerage with strong research tools and banking integration.</p><span class="read">schwab.com →</span></a>
+            <a class="learn-tile" href="https://www.sofi.com/invest/" target="_blank" rel="noopener noreferrer">
+              <h3>SoFi Invest</h3><p>App-first investing alongside banking and student-loan products.</p><span class="read">sofi.com →</span></a>
+            <a class="learn-tile" href="https://www.ally.com/invest/" target="_blank" rel="noopener noreferrer">
+              <h3>Ally Invest</h3><p>Online bank with simple self-directed and automated investing.</p><span class="read">ally.com →</span></a>
+            <a class="learn-tile" href="https://www.marcus.com" target="_blank" rel="noopener noreferrer">
+              <h3>Marcus by Goldman Sachs</h3><p>High-yield savings and CDs — the cash side of a portfolio.</p><span class="read">marcus.com →</span></a>
+            <a class="learn-tile" href="https://www.creditkarma.com" target="_blank" rel="noopener noreferrer">
+              <h3>Credit Karma</h3><p>Free credit monitoring — a common first stop before investing.</p><span class="read">creditkarma.com →</span></a>
+          </div>
+          <p class="fineprint">Independent educational links, in alphabetical-ish order — not endorsements,
+            not advice, and this site has no affiliation with or compensation from any of them.</p>
+        </div>
+      </section>
+    </div>
+
     <!-- ============== Assistant ============== -->
     <div class="view" data-view="assistant" hidden>
       <section class="section">
@@ -221,6 +270,6 @@
     Nothing here is investment advice. Market data via Yahoo Finance, delayed.
   </footer>
 
-  <script src="/app.js?v=5"></script>
+  <script src="/app.js?v=8"></script>
 </body>
 </html>

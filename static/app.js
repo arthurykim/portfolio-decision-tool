@@ -366,14 +366,18 @@ async function runBacktest() {
 }
 
 // ---------------------------------------------------------------- router
-const VIEWS = ["markets", "stocks", "backtest", "assistant", "about"];
+const VIEWS = ["markets", "stocks", "backtest", "learn", "assistant", "about"];
 
 function route() {
-  const view = VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : "markets";
+  const [name, arg] = location.hash.slice(1).split("/");
+  const view = VIEWS.includes(name) ? name : "markets";
   for (const el of document.querySelectorAll(".view")) el.hidden = el.dataset.view !== view;
-  for (const a of document.querySelectorAll(".nav a")) a.classList.toggle("active", a.dataset.view === view);
+  for (const a of document.querySelectorAll(".nav a[data-view]")) {
+    a.classList.toggle("active", a.dataset.view === view);
+  }
   if (view === "stocks") loadStocksView();
   if (view === "about") loadAbout();
+  if (view === "learn") loadLearnView(arg);
 }
 
 // ---------------------------------------------------------------- auth
@@ -603,7 +607,7 @@ function miniCard(symbol, name, sub, withUnpin) {
   const up = q && q.change_pct >= 0;
   return `<div class="mini-card">` +
     (withUnpin ? `<button class="unpin" data-symbol="${symbol}" title="Unpin ${symbol}">✕</button>` : "") +
-    `<span class="tk">${symbol}</span><span class="nm">${name}</span>` +
+    `${avatar(symbol)}<span class="tk">${symbol}</span><span class="nm">${name}</span>` +
     (q ? `<div class="px">$${q.price.toFixed(2)}</div>` +
          `<span class="chg ${up ? "up" : "down"}">${up ? "+" : ""}${q.change_pct.toFixed(2)}%</span>`
        : `<div class="px">${sub}</div>`) +
@@ -639,6 +643,78 @@ async function refreshWatchlist() {
   } catch { /* signed out */ }
 }
 
+// Colored-initials avatar (original artwork — no trademarked logos).
+function avatar(symbol) {
+  let h = 0;
+  for (const c of symbol) h = (h * 31 + c.charCodeAt(0)) % 360;
+  return `<span class="avatar" style="--h:${h}">${symbol.slice(0, 2)}</span>`;
+}
+
+// ---------------------------------------------------------------- movers
+async function loadMovers() {
+  const row = (q) => {
+    const up = q.change_pct >= 0;
+    return `<div class="mover-row">${avatar(q.symbol)}<span class="sym">${q.symbol}</span>` +
+      `<span class="nm">${q.name}</span><span class="px">$${q.price.toFixed(2)}</span>` +
+      `<span class="badge ${up ? "up" : "down"}">${up ? "+" : ""}${q.change_pct.toFixed(2)}%</span></div>`;
+  };
+  try {
+    const m = await api("/api/stocks/movers");
+    $("movers-up").innerHTML = m.gainers.map(row).join("");
+    $("movers-down").innerHTML = m.losers.map(row).join("");
+  } catch {
+    const note = "Movers unavailable right now.";
+    $("movers-up").textContent = note;
+    $("movers-down").textContent = note;
+  }
+}
+
+// ---------------------------------------------------------------- learn
+let learnList = null;
+
+async function loadLearnList() {
+  if (learnList) return learnList;
+  learnList = await api("/api/learn");
+  const menu = $("learn-menu");
+  menu.innerHTML = learnList.map((a) =>
+    `<a href="#learn/${a.slug}">${a.title}</a>`).join("") +
+    `<a href="#learn">All topics</a>`;
+  return learnList;
+}
+
+async function loadLearnView(slug) {
+  const list = await loadLearnList();
+  const tiles = $("learn-tiles");
+  const articleEl = $("learn-article");
+
+  if (slug && list.some((a) => a.slug === slug)) {
+    const a = await api(`/api/learn/${slug}`);
+    $("learn-title").textContent = a.title;
+    $("learn-back").hidden = false;
+    tiles.hidden = true;
+    $("learn-start").hidden = true;
+    articleEl.hidden = false;
+    articleEl.innerHTML = renderMarkdown(a.content.split("\n").slice(1).join("\n"));
+    window.scrollTo({ top: 0 });
+    return;
+  }
+
+  $("learn-title").textContent = "Learn";
+  $("learn-back").hidden = true;
+  articleEl.hidden = true;
+  tiles.hidden = false;
+  $("learn-start").hidden = false;
+  if (!tiles.childElementCount) {
+    tiles.innerHTML = list.map((a) =>
+      `<button type="button" class="learn-tile" data-slug="${a.slug}">` +
+      `<h3>${a.title}</h3><p>${a.teaser}</p><span class="read">Read →</span></button>`
+    ).join("");
+    for (const t of tiles.querySelectorAll(".learn-tile")) {
+      t.addEventListener("click", () => { location.hash = `learn/${t.dataset.slug}`; });
+    }
+  }
+}
+
 // ---------------------------------------------------------------- about
 let aboutLoaded = false;
 
@@ -653,7 +729,7 @@ function renderMarkdown(md) {
     const lines = b.split("\n");
     if (lines.every((l) => l.startsWith("- ")))
       return `<ul>${lines.map((l) => `<li>${inline(l.slice(2))}</li>`).join("")}</ul>`;
-    return `<p>${inline(b).replace(/\n/g, "<br>")}</p>`;
+    return `<p>${inline(b).replace(/\n/g, " ")}</p>`;
   }).join("");
 }
 
@@ -742,7 +818,10 @@ async function init() {
   $("chat-form").addEventListener("submit", sendChat);
   window.addEventListener("hashchange", route);
   initAuth();
+  $("learn-back").addEventListener("click", () => { location.hash = "learn"; });
   route();
+  loadLearnList().catch(() => {});
+  loadMovers();
 
   api("/api/auth/me").then(async (r) => {
     state.user = r.user;
