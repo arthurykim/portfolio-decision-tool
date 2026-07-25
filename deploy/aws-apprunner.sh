@@ -4,7 +4,7 @@
 # Usage: ./deploy/aws-apprunner.sh [region]
 set -euo pipefail
 
-REGION="${1:-us-east-1}"
+REGION="${1:-us-west-1}"
 APP_NAME="portfolio-decision-tool"
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 ECR_REPO="${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${APP_NAME}"

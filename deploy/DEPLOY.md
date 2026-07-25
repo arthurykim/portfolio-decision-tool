@@ -11,7 +11,7 @@ instance at hobby traffic.
 
 ```bash
 aws configure          # once: set access key, secret, region
-./deploy/aws-apprunner.sh us-east-1
+./deploy/aws-apprunner.sh us-west-1
 ```
 
 The script creates the ECR repo, builds and pushes the image, creates the

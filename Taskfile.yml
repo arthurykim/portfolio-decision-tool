@@ -60,7 +60,7 @@ tasks:
   deploy:aws:
     desc: Deploy to AWS App Runner (needs aws cli configured)
     cmds:
-      - ./deploy/aws-apprunner.sh {{.CLI_ARGS | default "us-east-1"}}
+      - ./deploy/aws-apprunner.sh {{.CLI_ARGS | default "us-west-1"}}
 
   default:
     desc: List tasks
