@@ -1,8 +1,10 @@
-fastapi>=0.111
-uvicorn[standard]>=0.30
-pandas>=2.2
-numpy>=1.26
-yfinance>=0.2.40
-pyarrow>=16.0
-pydantic>=2.7
-google-genai>=2.0
+# Floors are recent stable releases (verified working together on 2026-07-25);
+# upper bounds keep a future major release from breaking the build unattended.
+fastapi>=0.140,<1.0
+uvicorn[standard]>=0.51,<1.0
+pandas>=3.0.5,<4.0
+numpy>=2.5,<3.0
+yfinance>=1.5.2,<2.0
+pyarrow>=25.0,<26.0
+pydantic>=2.13,<3.0
+google-genai>=2.14,<3.0

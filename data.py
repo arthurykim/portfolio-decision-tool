@@ -52,7 +52,9 @@ def load_prices(ticker: str, refresh: bool = False) -> pd.DataFrame:
     # yfinance multi-index when one ticker — flatten
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = df.columns.get_level_values(0)
-    df = df[["Close"]].rename(columns={"Close": ticker})
+    # Drop rows with no close: the current session's bar can come back empty,
+    # which would otherwise make "as of" report a date that has no price.
+    df = df[["Close"]].rename(columns={"Close": ticker}).dropna()
     df.to_parquet(cache_file)
     return df
 
