@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 230" role="img"
+     aria-label="A traditional bank savings account paying near zero versus a high-yield savings account">
+  <style>
+    text{font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+    .ink{fill:#0b0b0b}.sub{fill:#52514e}.muted{fill:#898781}
+    .panel{fill:none;stroke:#e1e0d9}.track{fill:#f0efec}
+    .low{fill:#898781}.high{fill:#1baf7a}.hi-t{fill:#127954}
+    @media (prefers-color-scheme:dark){
+      .ink{fill:#fff}.sub{fill:#c3c2b7}.panel{stroke:#2c2c2a}.track{fill:#2c2c2a}
+      .high{fill:#199e70}.hi-t{fill:#4dbf97}}
+  </style>
+  <text class="muted" x="20" y="22" font-size="12">Same $10,000. Same FDIC insurance. Same access.</text>
+
+  <rect class="panel" x="16" y="36" width="330" height="176" rx="14" stroke-width="1.5"/>
+  <text class="ink" x="40" y="66" font-size="16" font-weight="800">Big-bank savings</text>
+  <text class="muted" x="40" y="86" font-size="12">Branch network, captive customers</text>
+  <text class="sub" x="40" y="118" font-size="12" font-weight="600">APY</text>
+  <rect class="track" x="40" y="128" width="266" height="18" rx="9"/>
+  <rect class="low" x="40" y="128" width="4" height="18" rx="2"/>
+  <text class="ink" x="40" y="172" font-size="24" font-weight="800">0.01%</text>
+  <text class="muted" x="40" y="194" font-size="12.5">≈ $1 of interest per year</text>
+
+  <rect class="panel" x="374" y="36" width="330" height="176" rx="14" stroke-width="1.5"/>
+  <text class="ink" x="398" y="66" font-size="16" font-weight="800">High-yield savings</text>
+  <text class="muted" x="398" y="86" font-size="12">Online bank competing for deposits</text>
+  <text class="sub" x="398" y="118" font-size="12" font-weight="600">APY</text>
+  <rect class="track" x="398" y="128" width="266" height="18" rx="9"/>
+  <rect class="high" x="398" y="128" width="240" height="18" rx="9"/>
+  <text class="hi-t" x="398" y="172" font-size="24" font-weight="800">4.00%</text>
+  <text class="muted" x="398" y="194" font-size="12.5">≈ $400 of interest per year</text>
+</svg>

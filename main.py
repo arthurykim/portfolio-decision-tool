@@ -486,6 +486,8 @@ LEARN_ARTICLES = {
     "what-are-index-funds": "what-are-index-funds.md",
     "retirement-accounts": "retirement-accounts.md",
     "taxable-vs-tax-advantaged": "taxable-vs-tax-advantaged.md",
+    "hysa-vs-checking": "hysa-vs-checking.md",
+    "money-basics": "money-basics.md",
 }
 
 

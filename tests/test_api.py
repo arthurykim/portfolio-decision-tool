@@ -120,10 +120,11 @@ def test_growth_accepts_large_amounts():
 
 def test_learn_index_and_articles():
     articles = client.get("/api/learn").json()
-    assert len(articles) == 4
+    assert len(articles) == 6
     assert {a["slug"] for a in articles} == {
         "what-are-etfs", "what-are-index-funds",
         "retirement-accounts", "taxable-vs-tax-advantaged",
+        "hysa-vs-checking", "money-basics",
     }
     assert all(a["title"] and a["teaser"] for a in articles)
 
