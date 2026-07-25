@@ -82,7 +82,7 @@ Without Task:
 
 ```bash
 python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt pytest httpx
+.venv/bin/pip install -r requirements.txt -r requirements-dev.txt
 .venv/bin/uvicorn main:app --reload   # http://localhost:8000
 ```
 
@@ -143,6 +143,12 @@ Reproduce with `task eval:retrieval`; per-question detail is written to
 scoring faithfulness (is the answer grounded in the retrieved passages?),
 context precision, and context recall. It needs a `GOOGLE_API_KEY` because
 it uses an LLM as judge, and writes to `eval/results.json`.
+
+> **Free-tier note:** Gemini's free tier caps requests *per day, per model*
+> (as low as 20/day on the newest Flash). Each question costs ~4 calls, so the
+> full 16-question run needs a paid tier or a roomier model. Score a subset
+> that fits your quota with `EVAL_LIMIT=4 task eval`, and pace requests with
+> `EVAL_RPM`.
 
 ## Deployment
 

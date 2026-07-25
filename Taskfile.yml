@@ -9,7 +9,7 @@ tasks:
     desc: Create venv and install dependencies
     cmds:
       - python3 -m venv .venv
-      - .venv/bin/pip install -r requirements.txt pytest httpx
+      - .venv/bin/pip install -r requirements.txt -r requirements-dev.txt
 
   dev:
     desc: Run the app locally with auto-reload (http://localhost:8000)

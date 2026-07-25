@@ -35,6 +35,9 @@ RESULTS = Path(__file__).parent / "results.json"
 # Gemini's free tier allows 5 requests/minute per model, so space calls out.
 # Override with EVAL_RPM if you are on a paid tier.
 RPM = int(os.environ.get("EVAL_RPM") or 5)
+# Free tiers also cap requests per DAY per model. Each question costs 1 answer
+# call plus ~3 judge calls, so set EVAL_LIMIT to fit a small daily budget.
+LIMIT = int(os.environ.get("EVAL_LIMIT") or 0)
 SPACING = 60.0 / max(RPM, 1)
 
 
@@ -49,6 +52,9 @@ def _throttle(last_call: float) -> float:
 def build_dataset() -> EvaluationDataset:
     rows = []
     cases = [json.loads(l) for l in GOLDEN.read_text().splitlines() if l.strip()]
+    if LIMIT:
+        cases = cases[:LIMIT]
+        print(f"  (EVAL_LIMIT={LIMIT}: scoring the first {LIMIT} questions)")
     last = 0.0
     for i, case in enumerate(cases, 1):
         last = _throttle(last)
