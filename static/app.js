@@ -216,7 +216,7 @@ function renderWhatIfControls() {
 
 async function runWhatIf() {
   const btn = $("wi-run");
-  const amount = Math.min(5000, Math.max(1000, parseFloat($("wi-amount").value) || 1000));
+  const amount = Math.min(100_000_000, Math.max(100, parseFloat($("wi-amount").value) || 1000));
   $("wi-amount").value = amount;
   const years = $("wi-years").value;
   const ticker = $("wi-ticker").value;

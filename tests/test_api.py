@@ -84,8 +84,15 @@ def test_growth_clamps_to_available_history():
 
 def test_growth_validates_inputs():
     assert client.get("/api/growth?ticker=SPY&amount=50&years=10").status_code == 422
+    assert client.get("/api/growth?ticker=SPY&amount=200000000&years=10").status_code == 422
     assert client.get("/api/growth?ticker=SPY&amount=1000&years=50").status_code == 422
     assert client.get("/api/growth?ticker=FAKE&amount=1000&years=10").status_code == 404
+
+
+def test_growth_accepts_large_amounts():
+    r = client.get("/api/growth?ticker=SPY&amount=100000000&years=5")
+    assert r.status_code == 200
+    assert r.json()["final_value"] > 100_000_000 * 0.1  # sane output for $100M
 
 
 def test_chat_returns_answer_and_sources():

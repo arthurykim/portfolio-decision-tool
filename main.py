@@ -131,7 +131,7 @@ def prices(ticker: str, days: int = Query(365, ge=2, le=20000)):
 @app.get("/api/growth")
 def growth(
     ticker: str = Query(...),
-    amount: float = Query(..., ge=100, le=1_000_000),
+    amount: float = Query(..., ge=100, le=100_000_000),
     years: int = Query(..., ge=1, le=30),
 ):
     """Hypothetical lump-sum: what would $amount invested `years` ago be worth today?
