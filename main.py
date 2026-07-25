@@ -311,6 +311,18 @@ def update_about(req: AboutUpdate, user: dict = Depends(require_admin)):
     return {"content": req.content}
 
 
+@app.middleware("http")
+async def cache_headers(request, call_next):
+    """HTML is never cached (so updates land immediately); versioned assets are immutable."""
+    response = await call_next(request)
+    content_type = response.headers.get("content-type", "")
+    if "text/html" in content_type:
+        response.headers["Cache-Control"] = "no-cache"
+    elif "v=" in request.url.query:
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    return response
+
+
 # Static frontend last so /api/* wins routing.
 STATIC_DIR = Path(__file__).parent / "static"
 if STATIC_DIR.exists():
