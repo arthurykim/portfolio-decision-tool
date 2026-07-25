@@ -9,3 +9,4 @@ __pycache__/
 eval/results.json
 TODO.csv
 .venv-eval/
+.cursor/
