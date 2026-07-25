@@ -1,0 +1,17 @@
+.git
+.github
+.venv
+.claude
+cache
+data
+eval
+scripts
+tests
+__pycache__
+*.pyc
+.DS_Store
+.env
+*.md
+Taskfile.yml
+docker-compose.yml
+TODO.csv
