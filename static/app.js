@@ -1,4 +1,3 @@
-/* Portfolio Decision Tool — frontend logic. No dependencies. */
 "use strict";
 
 const $ = (id) => document.getElementById(id);
@@ -11,9 +10,11 @@ const PRESETS = {
   "100% S&P": { SPY: 100 },
 };
 
-let TICKER_LIST = [];
+// Days of history to chart for each range tab.
+const RANGE_DAYS = { "1D": 5, "1W": 7, "1M": 21, YTD: 0, "1Y": 252, "5Y": 1260, ALL: 20000 };
 
-// ---------------------------------------------------------------- utilities
+const state = { funds: [], range: "1Y", selected: "SPY" };
+
 async function api(path, opts) {
   const res = await fetch(path, opts);
   if (!res.ok) {
@@ -30,119 +31,34 @@ async function api(path, opts) {
 }
 
 const fmtPct = (x, dp = 1) => `${(x * 100).toFixed(dp)}%`;
-
-// ---------------------------------------------------------------- quotes
-async function loadQuotes() {
-  const el = $("quotes");
-  try {
-    const quotes = await api("/api/quotes");
-    el.innerHTML = "";
-    for (const q of quotes) {
-      const up = q.change_pct >= 0;
-      const card = document.createElement("div");
-      card.className = "quote-card";
-      card.title = q.name;
-      card.innerHTML =
-        `<div class="qt">${q.ticker}</div>` +
-        `<div class="qp">$${q.price.toFixed(2)}</div>` +
-        `<div class="qc ${up ? "up" : "down"}">${up ? "▲" : "▼"} ${Math.abs(q.change_pct).toFixed(2)}%</div>`;
-      el.appendChild(card);
-    }
-    if (quotes.length) {
-      const note = document.createElement("span");
-      note.className = "note";
-      note.textContent = `as of ${quotes[0].as_of} (delayed)`;
-      el.appendChild(note);
-    }
-  } catch {
-    el.innerHTML = `<span class="note">Live quotes unavailable right now.</span>`;
-  }
-}
-
-// ---------------------------------------------------------------- builder
-function renderBuilder() {
-  const rows = $("alloc-rows");
-  rows.innerHTML = "";
-  for (const t of TICKER_LIST) {
-    const row = document.createElement("div");
-    row.className = "alloc-row";
-    row.innerHTML =
-      `<span class="tk">${t.ticker}</span>` +
-      `<span class="nm">${t.name}</span>` +
-      `<input type="number" min="0" max="100" step="0.5" value="0" ` +
-      `data-ticker="${t.ticker}" aria-label="${t.ticker} weight %" />`;
-    rows.appendChild(row);
-  }
-  rows.addEventListener("input", updateTotal);
-
-  const presets = $("presets");
-  for (const name of Object.keys(PRESETS)) {
-    const b = document.createElement("button");
-    b.type = "button";
-    b.className = "chip";
-    b.textContent = name;
-    b.addEventListener("click", () => applyPreset(name));
-    presets.appendChild(b);
-  }
-}
-
-function weightInputs() {
-  return [...document.querySelectorAll("#alloc-rows input")];
-}
-
-function applyPreset(name) {
-  const preset = PRESETS[name];
-  for (const input of weightInputs()) {
-    input.value = preset[input.dataset.ticker] ?? 0;
-  }
-  updateTotal();
-}
-
-function currentAllocation() {
-  const alloc = {};
-  for (const input of weightInputs()) {
-    const w = parseFloat(input.value) || 0;
-    if (w > 0) alloc[input.dataset.ticker] = w / 100;
-  }
-  return alloc;
-}
-
-function totalPct() {
-  return weightInputs().reduce((s, i) => s + (parseFloat(i.value) || 0), 0);
-}
-
-function updateTotal() {
-  const total = totalPct();
-  const el = $("alloc-total");
-  el.textContent = `Total: ${total.toFixed(1)}%`;
-  el.className = "alloc-total " + (Math.abs(total - 100) < 0.1 ? "ok" : "bad");
-}
-
-function normalize() {
-  const total = totalPct();
-  if (total <= 0) return;
-  for (const input of weightInputs()) {
-    const w = parseFloat(input.value) || 0;
-    input.value = w > 0 ? +(100 * w / total).toFixed(2) : 0;
-  }
-  updateTotal();
-}
+const fmtMoney = (x) => x.toLocaleString("en-US", { style: "currency", currency: "USD" });
+const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
 // ---------------------------------------------------------------- charts
-// Minimal SVG line/area chart with crosshair + tooltip.
+function sparkline(values, { width = 90, height = 28 } = {}) {
+  const min = Math.min(...values), max = Math.max(...values);
+  const range = max - min || 1;
+  const pts = values.map((v, i) =>
+    `${((i / (values.length - 1)) * width).toFixed(1)},${(height - 2 - ((v - min) / range) * (height - 4)).toFixed(1)}`);
+  const up = values[values.length - 1] >= values[0];
+  const color = up ? cssVar("--delta-up") : cssVar("--delta-down");
+  return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">` +
+    `<path d="M ${pts.join(" L ")}" fill="none" stroke="${color}" stroke-width="1.5"></path></svg>`;
+}
+
 function drawChart(containerId, dates, values, { color, area = false, fmt }) {
   const container = $(containerId);
   container.innerHTML = "";
 
   const W = 900, H = 300;
-  const pad = { top: 12, right: 16, bottom: 26, left: 56 };
+  const pad = { top: 12, right: 16, bottom: 26, left: 60 };
   const iw = W - pad.left - pad.right;
   const ih = H - pad.top - pad.bottom;
 
   let min = Math.min(...values), max = Math.max(...values);
   if (min === max) { min -= 1; max += 1; }
-  const range = max - min;
-  min -= range * 0.05; max += range * 0.05;
+  const spread = max - min;
+  min -= spread * 0.05; max += spread * 0.05;
 
   const x = (i) => pad.left + (i / (values.length - 1)) * iw;
   const y = (v) => pad.top + (1 - (v - min) / (max - min)) * ih;
@@ -150,7 +66,6 @@ function drawChart(containerId, dates, values, { color, area = false, fmt }) {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
 
-  // horizontal gridlines + y labels (4 ticks)
   for (let k = 0; k <= 3; k++) {
     const v = min + ((max - min) * k) / 3;
     const gy = y(v);
@@ -158,7 +73,6 @@ function drawChart(containerId, dates, values, { color, area = false, fmt }) {
       `<line class="gridline" x1="${pad.left}" x2="${W - pad.right}" y1="${gy}" y2="${gy}"></line>` +
       `<text class="axis-label" x="${pad.left - 8}" y="${gy + 4}" text-anchor="end">${fmt(v)}</text>`;
   }
-  // x labels: first / middle / last
   for (const i of [0, Math.floor(values.length / 2), values.length - 1]) {
     const anchor = i === 0 ? "start" : i === values.length - 1 ? "end" : "middle";
     svg.innerHTML += `<text class="axis-label" x="${x(i)}" y="${H - 6}" text-anchor="${anchor}">${dates[i]}</text>`;
@@ -181,7 +95,6 @@ function drawChart(containerId, dates, values, { color, area = false, fmt }) {
   const tooltip = document.createElement("div");
   tooltip.className = "tooltip";
   container.appendChild(tooltip);
-
   const crosshair = svg.querySelector(".crosshair");
   const dot = svg.querySelector(".dot");
 
@@ -208,9 +121,186 @@ function drawChart(containerId, dates, values, { color, area = false, fmt }) {
   });
 }
 
-// ---------------------------------------------------------------- backtest
-const seriesColor = () => getComputedStyle(document.documentElement).getPropertyValue("--series-1").trim();
-const drawdownColor = () => getComputedStyle(document.documentElement).getPropertyValue("--series-8").trim();
+// ---------------------------------------------------------------- market dashboard
+function renderTabs(ranges) {
+  const tabs = $("range-tabs");
+  tabs.innerHTML = "";
+  for (const r of ranges) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "tab" + (r === state.range ? " active" : "");
+    b.textContent = r;
+    b.addEventListener("click", () => {
+      state.range = r;
+      renderTabs(ranges);
+      renderFundGrid();
+      renderMainChart();
+    });
+    tabs.appendChild(b);
+  }
+}
+
+function renderFundGrid() {
+  const grid = $("fund-grid");
+  grid.innerHTML = "";
+  for (const f of state.funds) {
+    const ret = f.returns[state.range];
+    const up = ret >= 0;
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "fund-card" + (f.ticker === state.selected ? " selected" : "");
+    card.innerHTML =
+      `<span class="tk">${f.ticker}</span>` +
+      `<span class="px">$${f.price.toFixed(2)}</span>` +
+      `<span class="nm">${f.name}</span>` +
+      `<span class="spark">${sparkline(f.spark)}</span>` +
+      `<span class="badge ${up ? "up" : "down"}">${up ? "+" : ""}${ret.toFixed(2)}%</span>`;
+    card.addEventListener("click", () => {
+      state.selected = f.ticker;
+      renderFundGrid();
+      renderMainChart();
+    });
+    grid.appendChild(card);
+  }
+}
+
+async function renderMainChart() {
+  const fund = state.funds.find((f) => f.ticker === state.selected);
+  if (!fund) return;
+  $("chart-ticker").textContent = fund.ticker;
+  $("chart-name").textContent = fund.name;
+  const ret = fund.returns[state.range];
+  const el = $("chart-change");
+  el.textContent = `${ret >= 0 ? "+" : ""}${ret.toFixed(2)}% ${state.range}`;
+  el.className = "chart-change " + (ret >= 0 ? "up" : "down");
+
+  let days = RANGE_DAYS[state.range];
+  if (state.range === "YTD") {
+    const jan1 = new Date(new Date().getFullYear(), 0, 1);
+    days = Math.max(5, Math.ceil((Date.now() - jan1) / 86400000));
+  }
+  const r = await api(`/api/prices/${fund.ticker}?days=${days}`);
+  drawChart("main-chart", r.dates, r.prices,
+    { color: cssVar("--series-1"), area: true, fmt: (v) => `$${v.toFixed(0)}` });
+}
+
+async function loadMarket() {
+  const m = await api("/api/market");
+  state.funds = m.funds;
+  renderTabs(m.ranges);
+  renderFundGrid();
+  renderMainChart();
+  $("as-of").textContent = `data through ${m.as_of} · refreshed hourly`;
+}
+
+// ---------------------------------------------------------------- what-if
+function renderWhatIfControls() {
+  const sel = $("wi-ticker");
+  sel.innerHTML = "";
+  for (const f of state.funds) {
+    const opt = document.createElement("option");
+    opt.value = f.ticker;
+    opt.textContent = `${f.ticker} — ${f.name}`;
+    sel.appendChild(opt);
+  }
+  $("wi-years").addEventListener("input", () => {
+    $("wi-years-label").textContent = `${$("wi-years").value} yrs`;
+  });
+  $("wi-run").addEventListener("click", runWhatIf);
+}
+
+async function runWhatIf() {
+  const btn = $("wi-run");
+  const amount = Math.min(5000, Math.max(1000, parseFloat($("wi-amount").value) || 1000));
+  $("wi-amount").value = amount;
+  const years = $("wi-years").value;
+  const ticker = $("wi-ticker").value;
+  btn.disabled = true;
+  try {
+    const g = await api(`/api/growth?ticker=${ticker}&amount=${amount}&years=${years}`);
+    $("wi-result").hidden = false;
+    const gainPos = g.gain >= 0;
+    $("wi-metrics").innerHTML = [
+      ["You'd have", fmtMoney(g.final_value), `from ${fmtMoney(g.amount)} on ${g.start}`, gainPos ? "pos" : "neg"],
+      ["Gain", `${gainPos ? "+" : ""}${fmtMoney(g.gain)}`, `${g.multiple}x your money`, gainPos ? "pos" : "neg"],
+      ["CAGR", `${g.cagr}%`, "annualized", ""],
+    ].map(([label, value, sub, cls]) =>
+      `<div class="tile"><div class="label">${label}</div>` +
+      `<div class="value ${cls}">${value}</div><div class="sub">${sub}</div></div>`
+    ).join("");
+    drawChart("wi-chart", g.curve.dates, g.curve.values,
+      { color: cssVar("--series-1"), area: true, fmt: (v) => fmtMoney(v) });
+  } catch (e) {
+    $("wi-result").hidden = false;
+    $("wi-metrics").innerHTML = `<p class="error">${e.message}</p>`;
+    $("wi-chart").innerHTML = "";
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ---------------------------------------------------------------- backtest builder
+function renderBuilder() {
+  const rows = $("alloc-rows");
+  rows.innerHTML = "";
+  for (const f of state.funds) {
+    const row = document.createElement("div");
+    row.className = "alloc-row";
+    row.innerHTML =
+      `<span class="tk">${f.ticker}</span>` +
+      `<span class="nm">${f.name}</span>` +
+      `<input type="number" min="0" max="100" step="0.5" value="0" ` +
+      `data-ticker="${f.ticker}" aria-label="${f.ticker} weight %" />`;
+    rows.appendChild(row);
+  }
+  rows.addEventListener("input", updateTotal);
+
+  const presets = $("presets");
+  for (const name of Object.keys(PRESETS)) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "chip";
+    b.textContent = name;
+    b.addEventListener("click", () => applyPreset(name));
+    presets.appendChild(b);
+  }
+}
+
+const weightInputs = () => [...document.querySelectorAll("#alloc-rows input")];
+
+function applyPreset(name) {
+  const preset = PRESETS[name];
+  for (const input of weightInputs()) input.value = preset[input.dataset.ticker] ?? 0;
+  updateTotal();
+}
+
+function currentAllocation() {
+  const alloc = {};
+  for (const input of weightInputs()) {
+    const w = parseFloat(input.value) || 0;
+    if (w > 0) alloc[input.dataset.ticker] = w / 100;
+  }
+  return alloc;
+}
+
+const totalPct = () => weightInputs().reduce((s, i) => s + (parseFloat(i.value) || 0), 0);
+
+function updateTotal() {
+  const total = totalPct();
+  const el = $("alloc-total");
+  el.textContent = `Total: ${total.toFixed(1)}%`;
+  el.className = "alloc-total " + (Math.abs(total - 100) < 0.1 ? "ok" : "bad");
+}
+
+function normalize() {
+  const total = totalPct();
+  if (total <= 0) return;
+  for (const input of weightInputs()) {
+    const w = parseFloat(input.value) || 0;
+    input.value = w > 0 ? +(100 * w / total).toFixed(2) : 0;
+  }
+  updateTotal();
+}
 
 function renderMetrics(m) {
   const negClass = (x) => (x < 0 ? " neg" : "");
@@ -233,7 +323,6 @@ async function runBacktest() {
   const errEl = $("error");
   errEl.hidden = true;
 
-  const alloc = currentAllocation();
   const total = totalPct();
   if (Math.abs(total - 100) > 0.1) {
     errEl.textContent = `Weights must total 100% (currently ${total.toFixed(1)}%). Use "Normalize".`;
@@ -244,7 +333,7 @@ async function runBacktest() {
   btn.disabled = true;
   btn.textContent = "Running…";
   try {
-    const body = { allocation: alloc };
+    const body = { allocation: currentAllocation() };
     if ($("start-date").value) body.start = $("start-date").value;
     if ($("end-date").value) body.end = $("end-date").value;
 
@@ -259,9 +348,9 @@ async function runBacktest() {
     $("equity-panel").hidden = false;
     $("drawdown-panel").hidden = false;
     drawChart("equity-chart", r.equity_curve.dates, r.equity_curve.values,
-      { color: seriesColor(), fmt: (v) => `$${v.toFixed(2)}` });
+      { color: cssVar("--series-1"), fmt: (v) => `$${v.toFixed(2)}` });
     drawChart("drawdown-chart", r.drawdown.dates, r.drawdown.values,
-      { color: drawdownColor(), area: true, fmt: (v) => fmtPct(v) });
+      { color: cssVar("--series-8"), area: true, fmt: (v) => fmtPct(v) });
   } catch (e) {
     errEl.textContent = e.message || "Backtest failed.";
     errEl.hidden = false;
@@ -323,16 +412,15 @@ async function init() {
   $("chat-form").addEventListener("submit", sendChat);
 
   try {
-    TICKER_LIST = await api("/api/tickers");
+    await loadMarket();
   } catch {
-    $("error").textContent = "Could not reach the API.";
-    $("error").hidden = false;
+    $("fund-grid").innerHTML = `<p class="error">Could not reach the API.</p>`;
     return;
   }
+  renderWhatIfControls();
   renderBuilder();
   applyPreset("60/40");
-  loadQuotes();
-  setInterval(loadQuotes, 5 * 60 * 1000);
+  setInterval(loadMarket, 60 * 60 * 1000);
 }
 
 init();

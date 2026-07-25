@@ -9,55 +9,103 @@
 <body>
   <header class="topbar">
     <div class="topbar-inner">
-      <h1>Portfolio Decision Tool</h1>
-      <p class="tagline">Stress-test capital allocations against real historical market data.</p>
+      <div>
+        <h1>Portfolio Decision Tool</h1>
+        <p class="tagline">Track major index funds, backtest allocations, and learn as you go.</p>
+      </div>
+      <span id="as-of" class="as-of"></span>
     </div>
   </header>
 
-  <section id="quotes" class="quotes" aria-label="Latest market quotes"></section>
+  <main class="page">
 
-  <main class="layout">
-    <aside class="panel builder">
-      <h2>Allocation</h2>
-
-      <div class="presets" id="presets"></div>
-
-      <div id="alloc-rows" class="alloc-rows"></div>
-
-      <div class="alloc-footer">
-        <span id="alloc-total" class="alloc-total">Total: 0%</span>
-        <button id="normalize" class="btn ghost" type="button">Normalize to 100%</button>
+    <!-- ============== Market overview ============== -->
+    <section class="section">
+      <div class="section-head">
+        <h2>Markets</h2>
+        <div id="range-tabs" class="tabs" role="tablist"></div>
       </div>
+      <div id="fund-grid" class="fund-grid"></div>
 
-      <h2>Date range</h2>
-      <div class="dates">
-        <label>Start <input type="date" id="start-date" /></label>
-        <label>End <input type="date" id="end-date" /></label>
+      <div class="panel chart-panel">
+        <div class="chart-head">
+          <div>
+            <span id="chart-ticker" class="chart-ticker"></span>
+            <span id="chart-name" class="chart-name"></span>
+          </div>
+          <span id="chart-change" class="chart-change"></span>
+        </div>
+        <div id="main-chart" class="chart"></div>
       </div>
+    </section>
 
-      <button id="run" class="btn primary" type="button">Run backtest</button>
-      <p id="error" class="error" role="alert" hidden></p>
-    </aside>
-
-    <section class="results">
-      <div id="metrics" class="metrics" hidden></div>
-
-      <div class="panel chart-panel" id="equity-panel" hidden>
-        <h2>Growth of $1</h2>
-        <div id="equity-chart" class="chart"></div>
+    <!-- ============== What-if calculator ============== -->
+    <section class="section">
+      <div class="section-head"><h2>What if I had invested…</h2></div>
+      <div class="panel">
+        <div class="whatif-controls">
+          <label>Amount
+            <div class="amount-wrap">$<input id="wi-amount" type="number" min="1000" max="5000" step="100" value="1000" /></div>
+          </label>
+          <label>Years ago
+            <input id="wi-years" type="range" min="1" max="30" value="10" />
+            <span id="wi-years-label" class="range-val">10 yrs</span>
+          </label>
+          <label>Fund
+            <select id="wi-ticker"></select>
+          </label>
+          <button id="wi-run" class="btn primary" type="button">Calculate</button>
+        </div>
+        <div id="wi-result" class="wi-result" hidden>
+          <div class="metrics" id="wi-metrics"></div>
+          <div id="wi-chart" class="chart"></div>
+          <p class="fineprint">Hypothetical historical calculation on adjusted closes. Not a prediction, not advice.</p>
+        </div>
       </div>
+    </section>
 
-      <div class="panel chart-panel" id="drawdown-panel" hidden>
-        <h2>Drawdown from peak</h2>
-        <div id="drawdown-chart" class="chart"></div>
+    <!-- ============== Backtest lab ============== -->
+    <section class="section">
+      <div class="section-head"><h2>Backtest an allocation</h2></div>
+      <div class="layout">
+        <aside class="panel builder">
+          <h3>Allocation</h3>
+          <div class="presets" id="presets"></div>
+          <div id="alloc-rows" class="alloc-rows"></div>
+          <div class="alloc-footer">
+            <span id="alloc-total" class="alloc-total">Total: 0%</span>
+            <button id="normalize" class="btn ghost" type="button">Normalize to 100%</button>
+          </div>
+          <h3>Date range</h3>
+          <div class="dates">
+            <label>Start <input type="date" id="start-date" /></label>
+            <label>End <input type="date" id="end-date" /></label>
+          </div>
+          <button id="run" class="btn primary" type="button">Run backtest</button>
+          <p id="error" class="error" role="alert" hidden></p>
+        </aside>
+
+        <div class="results">
+          <div id="metrics" class="metrics" hidden></div>
+          <div class="panel chart-panel" id="equity-panel" hidden>
+            <h3>Growth of $1</h3>
+            <div id="equity-chart" class="chart"></div>
+          </div>
+          <div class="panel chart-panel" id="drawdown-panel" hidden>
+            <h3>Drawdown from peak</h3>
+            <div id="drawdown-chart" class="chart"></div>
+          </div>
+          <div class="panel empty-state" id="empty-state">
+            <p>Pick an allocation (or a preset), then run a backtest.</p>
+          </div>
+        </div>
       </div>
+    </section>
 
-      <div class="panel empty-state" id="empty-state">
-        <p>Pick an allocation on the left (or a preset), then run a backtest.</p>
-      </div>
-
-      <div class="panel chat-panel">
-        <h2>Ask the assistant</h2>
+    <!-- ============== Chat ============== -->
+    <section class="section">
+      <div class="section-head"><h2>Ask the assistant</h2></div>
+      <div class="panel">
         <p class="chat-hint">Ask about metrics, asset classes, or strategies —
           e.g. “What is max drawdown?” or “How does the All Weather portfolio work?”</p>
         <div id="chat-log" class="chat-log" aria-live="polite"></div>

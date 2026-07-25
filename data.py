@@ -1,4 +1,5 @@
 """Price data layer: fetch from yfinance, cache to local parquet files."""
+import os
 import time
 from pathlib import Path
 import pandas as pd
@@ -7,8 +8,8 @@ import yfinance as yf
 CACHE_DIR = Path(__file__).parent / "cache"
 CACHE_DIR.mkdir(exist_ok=True)
 
-# Refresh cached history once it's older than this (seconds).
-CACHE_MAX_AGE = 24 * 3600
+# Refresh cached history once it's older than this (seconds). Default: hourly.
+CACHE_MAX_AGE = int(os.environ.get("CACHE_MAX_AGE", 3600))
 
 # Tickers we support in v1. Keep this small and curated.
 TICKERS = {
@@ -58,30 +59,42 @@ def load_universe(refresh: bool = False) -> pd.DataFrame:
     return pd.concat(frames, axis=1).dropna(how="all")
 
 
-def get_quotes() -> list[dict]:
-    """Latest price + daily change for every supported ticker, one batch call.
+# Trading-day offsets for each supported range (None = special-cased).
+RANGES = {"1D": 1, "1W": 5, "1M": 21, "YTD": None, "1Y": 252, "5Y": 1260, "ALL": None}
 
-    Uses a 5-day window so it works on weekends/holidays. Prices from Yahoo
-    are delayed ~15 min; this is market data display, not an execution feed.
-    """
-    df = yf.download(list(TICKERS), period="5d", auto_adjust=True, progress=False)
-    closes = df["Close"].dropna(how="all")
-    if len(closes) < 2:
-        raise ValueError("Not enough recent data for quotes")
-    last, prev = closes.iloc[-1], closes.iloc[-2]
-    as_of = closes.index[-1].date().isoformat()
-    quotes = []
-    for t in TICKERS:
-        if pd.isna(last.get(t)) or pd.isna(prev.get(t)):
+
+def period_returns(prices: pd.DataFrame) -> list[dict]:
+    """Per-ticker % return over each supported range, from daily closes."""
+    prices = prices.dropna(how="all")
+    last_idx = prices.index[-1]
+    out = []
+    for t in prices.columns:
+        px = prices[t].dropna()
+        if len(px) < 2:
             continue
-        quotes.append({
+        last = float(px.iloc[-1])
+        rets = {}
+        for label, offset in RANGES.items():
+            if label == "YTD":
+                base = px[px.index < pd.Timestamp(year=last_idx.year, month=1, day=1)]
+                ref = float(base.iloc[-1]) if len(base) else float(px.iloc[0])
+            elif label == "ALL":
+                ref = float(px.iloc[0])
+            elif offset < len(px):
+                ref = float(px.iloc[-1 - offset])
+            else:
+                ref = float(px.iloc[0])
+            rets[label] = round((last / ref - 1) * 100, 2)
+        spark = px.tail(30)
+        out.append({
             "ticker": t,
-            "name": TICKERS[t],
-            "price": round(float(last[t]), 2),
-            "change_pct": round(float(last[t] / prev[t] - 1) * 100, 2),
-            "as_of": as_of,
+            "name": TICKERS.get(t, t),
+            "price": round(last, 2),
+            "returns": rets,
+            "since": px.index[0].date().isoformat(),
+            "spark": [round(float(v), 2) for v in spark],
         })
-    return quotes
+    return out
 
 
 if __name__ == "__main__":

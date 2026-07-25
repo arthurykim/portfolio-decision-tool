@@ -9,10 +9,10 @@ about 7 years, and QQQ about 15 years.
 
 ## Global financial crisis (2007-2009)
 
-From October 2007 to March 2009 the S&P 500 fell about -55%. Real estate (VNQ) fell
-roughly -68%. Long-term Treasuries (TLT) rallied strongly as investors fled to safety,
-which is why All Weather-style portfolios held up comparatively well. A 60/40 portfolio
-drew down roughly -35%.
+In the 2008 global financial crisis, the S&P 500 fell about -55% between October 2007
+and March 2009. Real estate (VNQ) fell roughly -68%. Long-term Treasuries (TLT) rallied
+strongly as investors fled to safety, which is why All Weather-style portfolios held up
+comparatively well. A 60/40 portfolio drew down roughly -35% in 2008-2009.
 
 ## COVID crash (February-March 2020)
 

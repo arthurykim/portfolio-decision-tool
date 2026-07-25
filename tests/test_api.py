@@ -55,6 +55,39 @@ def test_backtest_rejects_negative_weight():
     assert r.status_code == 422
 
 
+def test_market_dashboard():
+    r = client.get("/api/market")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["ranges"] == ["1D", "1W", "1M", "YTD", "1Y", "5Y", "ALL"]
+    assert len(body["funds"]) == 10
+    spy = next(f for f in body["funds"] if f["ticker"] == "SPY")
+    assert spy["price"] > 0
+    assert set(spy["returns"]) == set(body["ranges"])
+    assert len(spy["spark"]) == 30
+
+
+def test_growth_calculator():
+    r = client.get("/api/growth?ticker=SPY&amount=1000&years=10")
+    assert r.status_code == 200
+    g = r.json()
+    assert g["final_value"] > 0
+    assert g["gain"] == round(g["final_value"] - 1000, 2)
+    assert len(g["curve"]["dates"]) == len(g["curve"]["values"])
+
+
+def test_growth_clamps_to_available_history():
+    r = client.get("/api/growth?ticker=VXUS&amount=1000&years=30")
+    assert r.status_code == 200
+    assert r.json()["start"] >= "2011-01-01"  # VXUS inception
+
+
+def test_growth_validates_inputs():
+    assert client.get("/api/growth?ticker=SPY&amount=50&years=10").status_code == 422
+    assert client.get("/api/growth?ticker=SPY&amount=1000&years=50").status_code == 422
+    assert client.get("/api/growth?ticker=FAKE&amount=1000&years=10").status_code == 404
+
+
 def test_chat_returns_answer_and_sources():
     r = client.post("/api/chat", json={"message": "What is max drawdown?"})
     assert r.status_code == 200

@@ -4,8 +4,6 @@ Serves the JSON API under /api/* and the static frontend at /.
 Run locally:  uvicorn main:app --reload
 """
 import logging
-import threading
-import time
 from pathlib import Path
 
 import pandas as pd
@@ -15,7 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
 
 from backtest import run_backtest
-from data import TICKERS, get_quotes, load_universe
+from data import RANGES, TICKERS, load_universe, period_returns
 from rag import answer as rag_answer
 
 logger = logging.getLogger("uvicorn.error")
@@ -32,15 +30,6 @@ app.add_middleware(
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
-
-# ---------------------------------------------------------------------------
-# In-process caches. Price history is already cached on disk by data.py;
-# quotes get a short TTL memory cache so the UI can poll cheaply.
-# ---------------------------------------------------------------------------
-_quote_cache: dict = {"data": None, "ts": 0.0}
-_QUOTE_TTL = 300  # seconds
-_lock = threading.Lock()
-
 
 def _prices() -> pd.DataFrame:
     return load_universe()
@@ -93,23 +82,15 @@ def tickers():
     return [{"ticker": t, "name": n} for t, n in TICKERS.items()]
 
 
-@app.get("/api/quotes")
-def quotes():
-    now = time.time()
-    with _lock:
-        if _quote_cache["data"] is not None and now - _quote_cache["ts"] < _QUOTE_TTL:
-            return _quote_cache["data"]
-    try:
-        data = get_quotes()
-    except Exception as exc:
-        logger.warning("Quote fetch failed: %s", exc)
-        with _lock:
-            if _quote_cache["data"] is not None:
-                return _quote_cache["data"]  # serve stale over erroring
-        raise HTTPException(status_code=503, detail="Quote source unavailable")
-    with _lock:
-        _quote_cache.update(data=data, ts=now)
-    return data
+@app.get("/api/market")
+def market():
+    """Dashboard payload: per-ticker price + returns over every supported range."""
+    px = _prices()
+    return {
+        "ranges": list(RANGES),
+        "as_of": px.index[-1].date().isoformat(),
+        "funds": period_returns(px),
+    }
 
 
 @app.get("/api/prices/{ticker}")
@@ -122,6 +103,48 @@ def prices(ticker: str, days: int = Query(365, ge=2, le=20000)):
         "ticker": ticker,
         "dates": [d.date().isoformat() for d in px.index],
         "prices": [round(float(p), 2) for p in px],
+    }
+
+
+@app.get("/api/growth")
+def growth(
+    ticker: str = Query(...),
+    amount: float = Query(..., ge=100, le=1_000_000),
+    years: int = Query(..., ge=1, le=30),
+):
+    """Hypothetical lump-sum: what would $amount invested `years` ago be worth today?
+
+    Purely historical arithmetic on adjusted closes — educational, not advice.
+    """
+    ticker = ticker.upper()
+    if ticker not in TICKERS:
+        raise HTTPException(status_code=404, detail=f"Unknown ticker {ticker}")
+    px = _prices()[ticker].dropna()
+    start = px.index[-1] - pd.DateOffset(years=years)
+    window = px[px.index >= start]
+    if len(window) < 2:
+        raise HTTPException(
+            status_code=422,
+            detail=f"{ticker} data only goes back to {px.index[0].date()}",
+        )
+    curve = (window / window.iloc[0]) * amount
+    if len(curve) > 1500:
+        curve = curve.resample("W-FRI").last().dropna()
+    actual_years = (window.index[-1] - window.index[0]).days / 365.25
+    final = float(curve.iloc[-1])
+    return {
+        "ticker": ticker,
+        "amount": amount,
+        "start": window.index[0].date().isoformat(),
+        "end": window.index[-1].date().isoformat(),
+        "final_value": round(final, 2),
+        "gain": round(final - amount, 2),
+        "multiple": round(final / amount, 2),
+        "cagr": round(((final / amount) ** (1 / actual_years) - 1) * 100, 2) if actual_years > 0 else 0,
+        "curve": {
+            "dates": [d.date().isoformat() for d in curve.index],
+            "values": [round(float(v), 2) for v in curve],
+        },
     }
 
 
