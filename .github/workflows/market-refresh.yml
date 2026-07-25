@@ -22,8 +22,8 @@ jobs:
       - run: python scripts/refresh_market.py
       - name: commit snapshot if changed
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "Arthur Kim"
+          git config user.email "276535439+arthurykim@users.noreply.github.com"
           git add data/market_snapshot.json
           git diff --cached --quiet || git commit -m "update market snapshot"
           git push
