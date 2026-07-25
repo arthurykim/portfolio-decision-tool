@@ -471,7 +471,10 @@ async function loadStocksView() {
     ]);
     state.sp500 = sp.stocks;
     state.ipos = ipos.stocks;
-    $("stock-search").addEventListener("input", renderStockTable);
+    $("stock-search").addEventListener("input", () => {
+      tablePage = 1;
+      renderStockTable();
+    });
     renderIpoStrip();
     fetchQuotes(state.ipos.map((s) => s.symbol)).then(renderIpoStrip);
   }
@@ -529,17 +532,44 @@ function bindPinButtons(container) {
   }
 }
 
+let tableRenderSeq = 0;
+let quoteTimer = null;
+let tablePage = 1;
+const PAGE_SIZE = 50;
+
+function renderPager(totalPages) {
+  const pager = $("stock-pager");
+  pager.innerHTML = "";
+  if (totalPages <= 1) return;
+  for (let p = 1; p <= totalPages; p++) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "page-btn" + (p === tablePage ? " active" : "");
+    b.textContent = p;
+    b.addEventListener("click", () => {
+      tablePage = p;
+      renderStockTable();
+    });
+    pager.appendChild(b);
+  }
+}
+
 function renderStockTable() {
   if (!state.sp500.length) return;
+  const seq = ++tableRenderSeq;
   const q = $("stock-search").value.trim().toLowerCase();
   const matches = q
     ? state.sp500.filter((s) =>
         s.symbol.toLowerCase().includes(q) || s.name.toLowerCase().includes(q))
     : state.sp500;
-  const shown = matches.slice(0, 50);
+  const totalPages = Math.max(1, Math.ceil(matches.length / PAGE_SIZE));
+  tablePage = Math.min(tablePage, totalPages);
+  const startIdx = (tablePage - 1) * PAGE_SIZE;
+  const shown = matches.slice(startIdx, startIdx + PAGE_SIZE);
   $("table-title").textContent = q ? `Search: “${$("stock-search").value.trim()}”` : "S&P 500";
-  $("table-note").textContent = `Showing ${shown.length} of ${matches.length}` +
-    (q ? " matches" : " companies") + ". Prices load for searched and pinned stocks.";
+  renderPager(totalPages);
+  $("table-note").textContent =
+    `${matches.length}${q ? " matches" : " companies"} · page ${tablePage} of ${totalPages}`;
 
   $("stock-rows").innerHTML = shown.map((s) =>
     `<tr><td>${pinButton(s.symbol)}</td><td class="sym">${s.symbol}</td>` +
@@ -547,19 +577,25 @@ function renderStockTable() {
   ).join("");
   bindPinButtons($("stock-rows"));
 
-  if (q && shown.length && shown.length <= 30) {
-    fetchQuotes(shown.map((s) => s.symbol)).then(() => {
-      const rows = $("stock-rows").rows;
-      shown.forEach((s, i) => {
-        const tmp = document.createElement("tr");
-        tmp.innerHTML = quoteCells(s.symbol);
-        const [priceCell, chgCell] = [...tmp.children];
-        const cells = rows[i].querySelectorAll(".num");
-        cells[0].replaceWith(priceCell);
-        cells[1].replaceWith(chgCell);
-      });
+  // Load prices for the visible rows, debounced so typing doesn't spam fetches.
+  clearTimeout(quoteTimer);
+  quoteTimer = setTimeout(async () => {
+    const symbols = shown.map((s) => s.symbol);
+    for (let i = 0; i < symbols.length; i += 30) {
+      await fetchQuotes(symbols.slice(i, i + 30));
+    }
+    if (seq !== tableRenderSeq) return;  // a newer render owns the table now
+    const rows = $("stock-rows").rows;
+    shown.forEach((s, i) => {
+      if (!rows[i]) return;
+      const tmp = document.createElement("tr");
+      tmp.innerHTML = quoteCells(s.symbol);
+      const [priceCell, chgCell] = [...tmp.children];
+      const cells = rows[i].querySelectorAll(".num");
+      cells[0].replaceWith(priceCell);
+      cells[1].replaceWith(chgCell);
     });
-  }
+  }, q ? 350 : 0);
 }
 
 function miniCard(symbol, name, sub, withUnpin) {
