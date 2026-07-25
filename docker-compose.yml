@@ -5,10 +5,13 @@ services:
       - "8000:8000"
     volumes:
       - price-cache:/app/cache
+      - app-db:/app/db
     environment:
       - CACHE_MAX_AGE=3600
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - SECRET_KEY=${SECRET_KEY:-}
     restart: unless-stopped
 
 volumes:
   price-cache:
+  app-db:

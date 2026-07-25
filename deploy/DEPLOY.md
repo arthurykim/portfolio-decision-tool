@@ -56,6 +56,21 @@ Add `ANTHROPIC_API_KEY` with `az containerapp secret set` +
 `--env-vars ANTHROPIC_API_KEY=secretref:anthropic-key` to enable the chat
 assistant.
 
+## Environment variables
+
+| Variable | Purpose |
+|---|---|
+| `SECRET_KEY` | Signs session cookies. **Set a long random value in production** (`openssl rand -hex 32`); without it sessions reset on every restart. |
+| `COOKIE_SECURE` | Set to `1` behind HTTPS (App Runner / Container Apps) so session cookies are Secure-only. |
+| `ANTHROPIC_API_KEY` | Enables Claude-generated chat answers (optional). |
+| `CACHE_MAX_AGE` | Price cache TTL in seconds (default 3600). |
+| `DB_PATH` | SQLite location (default `db/app.db`). |
+
+**Accounts durability:** users/watchlists live in SQLite. On App Runner the
+container filesystem is ephemeral — accounts reset on redeploy. Fine while the
+feature is light; when accounts matter, point `DB_PATH` at a mounted volume
+(Azure Container Apps + Azure Files works today) or migrate to RDS/Postgres.
+
 ## Notes
 
 - The container starts with an empty price cache; the first request downloads

@@ -10,15 +10,22 @@ data, and learn the concepts as you go — in one self-contained web app.
 
 ## Features
 
-- **Market dashboard** — live-ish prices and returns for 10 major ETFs (SPY,
-  QQQ, VTI, VXUS, AGG, IEF, TLT, GLD, VNQ, BIL) across 1D / 1W / 1M / YTD /
-  1Y / 5Y / All ranges, with sparklines and an interactive price chart.
+- **Market dashboard** — live-ish prices and returns for 11 major ETFs (SPY,
+  VOO, QQQ, VTI, VXUS, AGG, IEF, TLT, GLD, VNQ, BIL) across 1D / 1W / 1M /
+  YTD / 1Y / 5Y / All ranges, with sparklines and an interactive price chart.
   A GitHub Actions cron refreshes a committed market snapshot every hour
   during US trading hours.
+- **Stocks** — searchable S&P 500 catalog (503 constituents) plus a curated
+  recent-tech-IPO strip, with on-demand quotes. Sign in to pin stocks to a
+  personal watchlist.
+- **Accounts** — lightweight self-hosted auth: scrypt-hashed passwords,
+  HMAC-signed HttpOnly session cookies, SQLite storage, zero external
+  dependencies. The first registered user becomes the site admin and can edit
+  the About page in place.
 - **"What if I had invested…"** — hypothetical lump-sum calculator: $1,000–5,000
   into any supported fund 1–30 years ago, with the resulting growth curve,
   gain, and CAGR.
-- **Backtest lab** — weight any mix of the 10 funds (presets: 60/40,
+- **Backtest lab** — weight any mix of the 11 funds (presets: 60/40,
   Three-Fund, All Weather, Golden Butterfly), pick a date window, and get the
   equity curve, drawdown chart, CAGR, volatility, Sharpe, and max drawdown.
 - **RAG chat assistant** — asks-anything box over a curated finance knowledge
@@ -30,22 +37,26 @@ data, and learn the concepts as you go — in one self-contained web app.
 ## Architecture
 
 ```
-┌─────────────────────────── one container ───────────────────────────┐
-│  FastAPI (main.py)                                                  │
-│  ├── /api/market     period returns for the dashboard               │
-│  ├── /api/prices/:t  daily close history                            │
-│  ├── /api/growth     hypothetical lump-sum calculator               │
-│  ├── /api/backtest   allocation backtest (backtest.py)              │
-│  ├── /api/chat       RAG assistant (rag.py + knowledge/*.md)        │
-│  └── /               static frontend (vanilla JS + hand-rolled SVG) │
-│                                                                     │
-│  data.py — yfinance download → parquet cache (hourly TTL)           │
-└─────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────── one container ────────────────────────────┐
+│  FastAPI (main.py)                                                   │
+│  ├── /api/market         period returns for the dashboard            │
+│  ├── /api/prices/:t      daily close history                         │
+│  ├── /api/growth         hypothetical lump-sum calculator            │
+│  ├── /api/backtest       allocation backtest (backtest.py)           │
+│  ├── /api/chat           RAG assistant (rag.py + knowledge/*.md)     │
+│  ├── /api/stocks/quotes  quotes for catalog symbols                  │
+│  ├── /api/auth/*         register / login / logout (auth.py)         │
+│  ├── /api/watchlist      per-user pinned stocks (db.py, SQLite)      │
+│  ├── /api/about          editable site content (admin)               │
+│  └── /                   static frontend (vanilla JS, SVG charts)    │
+│                                                                      │
+│  data.py — yfinance download → parquet cache (hourly TTL)            │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
-No database, no build step, no frontend framework: prices cache to parquet on
-disk, the UI is a single static page, and the whole thing ships as one Docker
-image.
+No build step, no frontend framework, no external services: prices cache to
+parquet, users and watchlists live in a single SQLite file, the UI is one
+static page, and the whole thing ships as one Docker image.
 
 ## Quickstart
 
@@ -54,7 +65,7 @@ With [Task](https://taskfile.dev) (`brew install go-task`):
 ```bash
 task setup    # create venv, install deps
 task dev      # run at http://localhost:8000
-task test     # run the 34-test suite
+task test     # run the test suite
 ```
 
 Without Task:
@@ -123,7 +134,8 @@ task deploy:aws       # ECR push + App Runner create/redeploy
 | `rag.py` | BM25 index + optional Claude generation |
 | `knowledge/` | Finance knowledge base (5 markdown files) |
 | `static/` | Frontend (HTML/CSS/JS, no framework) |
-| `tests/` | 34 pytest tests, hermetic via synthetic fixtures |
+| `db.py` / `auth.py` | SQLite persistence + stdlib session auth |
+| `tests/` | 43 pytest tests, hermetic via synthetic fixtures |
 | `eval/` | RAGAS golden set + evaluation script |
 | `scripts/refresh_market.py` | Hourly snapshot generator (CI cron) |
 | `deploy/` | App Runner script + deployment docs |

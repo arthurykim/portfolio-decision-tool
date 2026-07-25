@@ -4,125 +4,198 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Portfolio Decision Tool</title>
-  <link rel="stylesheet" href="/style.css" />
+  <link rel="stylesheet" href="/style.css?v=2" />
 </head>
 <body>
   <header class="topbar">
     <div class="topbar-inner">
-      <div>
+      <div class="brand">
         <h1>Portfolio Decision Tool</h1>
-        <p class="tagline">Track major index funds, backtest allocations, and learn as you go.</p>
+        <span id="as-of" class="as-of"></span>
       </div>
-      <span id="as-of" class="as-of"></span>
+      <nav class="nav" id="nav">
+        <a href="#markets" data-view="markets">Markets</a>
+        <a href="#stocks" data-view="stocks">Stocks</a>
+        <a href="#backtest" data-view="backtest">Backtest</a>
+        <a href="#assistant" data-view="assistant">Assistant</a>
+        <a href="#about" data-view="about">About</a>
+      </nav>
+      <div class="auth-box" id="auth-box"></div>
     </div>
   </header>
 
   <main class="page">
 
-    <!-- ============== Market overview ============== -->
-    <section class="section">
-      <div class="section-head">
-        <h2>Markets</h2>
-        <div id="range-tabs" class="tabs" role="tablist"></div>
-      </div>
-      <div id="fund-grid" class="fund-grid"></div>
-
-      <div class="panel chart-panel">
-        <div class="chart-head">
-          <div>
-            <span id="chart-ticker" class="chart-ticker"></span>
-            <span id="chart-name" class="chart-name"></span>
-          </div>
-          <span id="chart-change" class="chart-change"></span>
+    <!-- ============== Markets ============== -->
+    <div class="view" data-view="markets">
+      <section class="section">
+        <div class="section-head">
+          <h2>Markets</h2>
+          <div id="range-tabs" class="tabs" role="tablist"></div>
         </div>
-        <div id="main-chart" class="chart"></div>
-      </div>
-    </section>
-
-    <!-- ============== What-if calculator ============== -->
-    <section class="section">
-      <div class="section-head"><h2>What if I had invested…</h2></div>
-      <div class="panel">
-        <div class="whatif-controls">
-          <label>Amount
-            <div class="amount-wrap">$<input id="wi-amount" type="number" min="1000" max="5000" step="100" value="1000" /></div>
-          </label>
-          <label>Years ago
-            <input id="wi-years" type="range" min="1" max="30" value="10" />
-            <span id="wi-years-label" class="range-val">10 yrs</span>
-          </label>
-          <label>Fund
-            <select id="wi-ticker"></select>
-          </label>
-          <button id="wi-run" class="btn primary" type="button">Calculate</button>
+        <div id="fund-grid" class="fund-grid"></div>
+        <div class="panel chart-panel">
+          <div class="chart-head">
+            <div>
+              <span id="chart-ticker" class="chart-ticker"></span>
+              <span id="chart-name" class="chart-name"></span>
+            </div>
+            <span id="chart-change" class="chart-change"></span>
+          </div>
+          <div id="main-chart" class="chart"></div>
         </div>
-        <div id="wi-result" class="wi-result" hidden>
-          <div class="metrics" id="wi-metrics"></div>
-          <div id="wi-chart" class="chart"></div>
-          <p class="fineprint">Hypothetical historical calculation on adjusted closes. Not a prediction, not advice.</p>
-        </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- ============== Backtest lab ============== -->
-    <section class="section">
-      <div class="section-head"><h2>Backtest an allocation</h2></div>
-      <div class="layout">
-        <aside class="panel builder">
-          <h3>Allocation</h3>
-          <div class="presets" id="presets"></div>
-          <div id="alloc-rows" class="alloc-rows"></div>
-          <div class="alloc-footer">
-            <span id="alloc-total" class="alloc-total">Total: 0%</span>
-            <button id="normalize" class="btn ghost" type="button">Normalize to 100%</button>
+      <section class="section">
+        <div class="section-head"><h2>What if I had invested…</h2></div>
+        <div class="panel">
+          <div class="whatif-controls">
+            <label>Amount
+              <div class="amount-wrap">$<input id="wi-amount" type="number" min="1000" max="5000" step="100" value="1000" /></div>
+            </label>
+            <label>Years ago
+              <input id="wi-years" type="range" min="1" max="30" value="10" />
+              <span id="wi-years-label" class="range-val">10 yrs</span>
+            </label>
+            <label>Fund
+              <select id="wi-ticker"></select>
+            </label>
+            <button id="wi-run" class="btn primary" type="button">Calculate</button>
           </div>
-          <h3>Date range</h3>
-          <div class="dates">
-            <label>Start <input type="date" id="start-date" /></label>
-            <label>End <input type="date" id="end-date" /></label>
-          </div>
-          <button id="run" class="btn primary" type="button">Run backtest</button>
-          <p id="error" class="error" role="alert" hidden></p>
-        </aside>
-
-        <div class="results">
-          <div id="metrics" class="metrics" hidden></div>
-          <div class="panel chart-panel" id="equity-panel" hidden>
-            <h3>Growth of $1</h3>
-            <div id="equity-chart" class="chart"></div>
-          </div>
-          <div class="panel chart-panel" id="drawdown-panel" hidden>
-            <h3>Drawdown from peak</h3>
-            <div id="drawdown-chart" class="chart"></div>
-          </div>
-          <div class="panel empty-state" id="empty-state">
-            <p>Pick an allocation (or a preset), then run a backtest.</p>
+          <div id="wi-result" class="wi-result" hidden>
+            <div class="metrics" id="wi-metrics"></div>
+            <div id="wi-chart" class="chart"></div>
+            <p class="fineprint">Hypothetical historical calculation on adjusted closes. Not a prediction, not advice.</p>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
+    </div>
 
-    <!-- ============== Chat ============== -->
-    <section class="section">
-      <div class="section-head"><h2>Ask the assistant</h2></div>
-      <div class="panel">
-        <p class="chat-hint">Ask about metrics, asset classes, or strategies —
-          e.g. “What is max drawdown?” or “How does the All Weather portfolio work?”</p>
-        <div id="chat-log" class="chat-log" aria-live="polite"></div>
-        <form id="chat-form" class="chat-form">
-          <input id="chat-input" type="text" maxlength="2000" autocomplete="off"
-                 placeholder="Ask a question about investing concepts…" />
-          <button class="btn primary chat-send" type="submit">Send</button>
-        </form>
-      </div>
-    </section>
+    <!-- ============== Stocks ============== -->
+    <div class="view" data-view="stocks" hidden>
+      <section class="section">
+        <div class="section-head">
+          <h2>Stocks</h2>
+          <input id="stock-search" class="search" type="search"
+                 placeholder="Search 500+ companies…" autocomplete="off" />
+        </div>
+
+        <div id="watch-section" hidden>
+          <h3 class="subhead">Pinned</h3>
+          <div id="watch-strip" class="watch-strip"></div>
+        </div>
+
+        <h3 class="subhead">Recent tech IPOs</h3>
+        <div id="ipo-strip" class="ipo-strip"></div>
+
+        <h3 class="subhead" id="table-title">S&amp;P 500</h3>
+        <div class="panel table-panel">
+          <table class="stock-table">
+            <thead><tr><th></th><th>Symbol</th><th>Company</th><th>Sector</th><th class="num">Price</th><th class="num">1D</th></tr></thead>
+            <tbody id="stock-rows"></tbody>
+          </table>
+          <p id="table-note" class="fineprint"></p>
+        </div>
+      </section>
+    </div>
+
+    <!-- ============== Backtest ============== -->
+    <div class="view" data-view="backtest" hidden>
+      <section class="section">
+        <div class="section-head"><h2>Backtest an allocation</h2></div>
+        <div class="layout">
+          <aside class="panel builder">
+            <h3>Allocation</h3>
+            <div class="presets" id="presets"></div>
+            <div id="alloc-rows" class="alloc-rows"></div>
+            <div class="alloc-footer">
+              <span id="alloc-total" class="alloc-total">Total: 0%</span>
+              <button id="normalize" class="btn ghost" type="button">Normalize to 100%</button>
+            </div>
+            <h3>Date range</h3>
+            <div class="dates">
+              <label>Start <input type="date" id="start-date" /></label>
+              <label>End <input type="date" id="end-date" /></label>
+            </div>
+            <button id="run" class="btn primary" type="button">Run backtest</button>
+            <p id="error" class="error" role="alert" hidden></p>
+          </aside>
+          <div class="results">
+            <div id="metrics" class="metrics" hidden></div>
+            <div class="panel chart-panel" id="equity-panel" hidden>
+              <h3>Growth of $1</h3>
+              <div id="equity-chart" class="chart"></div>
+            </div>
+            <div class="panel chart-panel" id="drawdown-panel" hidden>
+              <h3>Drawdown from peak</h3>
+              <div id="drawdown-chart" class="chart"></div>
+            </div>
+            <div class="panel empty-state" id="empty-state">
+              <p>Pick an allocation (or a preset), then run a backtest.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ============== Assistant ============== -->
+    <div class="view" data-view="assistant" hidden>
+      <section class="section">
+        <div class="section-head"><h2>Ask the assistant</h2></div>
+        <div class="panel">
+          <p class="chat-hint">Ask about metrics, asset classes, or strategies —
+            e.g. “What is max drawdown?” or “How does the All Weather portfolio work?”</p>
+          <div id="chat-log" class="chat-log" aria-live="polite"></div>
+          <form id="chat-form" class="chat-form">
+            <input id="chat-input" type="text" maxlength="2000" autocomplete="off"
+                   placeholder="Ask a question about investing concepts…" />
+            <button class="btn primary chat-send" type="submit">Send</button>
+          </form>
+        </div>
+      </section>
+    </div>
+
+    <!-- ============== About ============== -->
+    <div class="view" data-view="about" hidden>
+      <section class="section">
+        <div class="section-head">
+          <h2>About</h2>
+          <button id="about-edit" class="btn ghost" type="button" hidden>Edit</button>
+        </div>
+        <div class="panel">
+          <div id="about-content" class="about-content"></div>
+          <div id="about-editor" hidden>
+            <textarea id="about-textarea" rows="14"></textarea>
+            <div class="editor-actions">
+              <button id="about-save" class="btn primary" type="button">Save</button>
+              <button id="about-cancel" class="btn ghost" type="button">Cancel</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
   </main>
+
+  <!-- Auth modal -->
+  <dialog id="auth-modal" class="auth-modal">
+    <form method="dialog" class="auth-form" id="auth-form">
+      <h3 id="auth-title">Sign in</h3>
+      <label>Username <input id="auth-username" type="text" minlength="3" maxlength="32" autocomplete="username" required /></label>
+      <label>Password <input id="auth-password" type="password" minlength="8" maxlength="128" autocomplete="current-password" required /></label>
+      <p id="auth-error" class="error" hidden></p>
+      <div class="editor-actions">
+        <button id="auth-submit" class="btn primary" type="button">Sign in</button>
+        <button id="auth-close" class="btn ghost" type="button">Close</button>
+      </div>
+      <button id="auth-switch" class="linklike" type="button">New here? Create an account</button>
+    </form>
+  </dialog>
 
   <footer class="disclaimer">
     Educational tool only. Historical performance does not predict future results.
     Nothing here is investment advice. Market data via Yahoo Finance, delayed.
   </footer>
 
-  <script src="/app.js"></script>
+  <script src="/app.js?v=2"></script>
 </body>
 </html>

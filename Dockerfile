@@ -9,11 +9,11 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 
-COPY data.py backtest.py rag.py main.py ./
+COPY data.py backtest.py rag.py db.py auth.py main.py ./
 COPY knowledge/ knowledge/
 COPY static/ static/
 
-RUN useradd -m appuser && mkdir -p cache && chown -R appuser:appuser /app
+RUN useradd -m appuser && mkdir -p cache db && chown -R appuser:appuser /app
 USER appuser
 
 EXPOSE 8000

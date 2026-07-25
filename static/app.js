@@ -13,7 +13,10 @@ const PRESETS = {
 // Days of history to chart for each range tab.
 const RANGE_DAYS = { "1D": 5, "1W": 7, "1M": 21, YTD: 0, "1Y": 252, "5Y": 1260, ALL: 20000 };
 
-const state = { funds: [], range: "1Y", selected: "SPY" };
+const state = {
+  funds: [], range: "1Y", selected: "SPY",
+  user: null, watchlist: [], sp500: [], ipos: [], quotes: {},
+};
 
 async function api(path, opts) {
   const res = await fetch(path, opts);
@@ -362,6 +365,295 @@ async function runBacktest() {
   }
 }
 
+// ---------------------------------------------------------------- router
+const VIEWS = ["markets", "stocks", "backtest", "assistant", "about"];
+
+function route() {
+  const view = VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : "markets";
+  for (const el of document.querySelectorAll(".view")) el.hidden = el.dataset.view !== view;
+  for (const a of document.querySelectorAll(".nav a")) a.classList.toggle("active", a.dataset.view === view);
+  if (view === "stocks") loadStocksView();
+  if (view === "about") loadAbout();
+}
+
+// ---------------------------------------------------------------- auth
+function renderAuthBox() {
+  const box = $("auth-box");
+  box.innerHTML = "";
+  if (state.user) {
+    const chip = document.createElement("span");
+    chip.className = "user-chip";
+    chip.textContent = state.user.username;
+    if (state.user.is_admin) {
+      const tag = document.createElement("span");
+      tag.className = "admin-tag";
+      tag.textContent = "admin";
+      chip.appendChild(tag);
+    }
+    const out = document.createElement("button");
+    out.className = "btn ghost";
+    out.type = "button";
+    out.textContent = "Sign out";
+    out.addEventListener("click", async () => {
+      await api("/api/auth/logout", { method: "POST" });
+      state.user = null;
+      state.watchlist = [];
+      renderAuthBox();
+      renderWatchStrip();
+      renderStockTable();
+      $("about-edit").hidden = true;
+    });
+    box.append(chip, out);
+  } else {
+    const btn = document.createElement("button");
+    btn.className = "btn ghost";
+    btn.type = "button";
+    btn.textContent = "Sign in";
+    btn.addEventListener("click", () => $("auth-modal").showModal());
+    box.appendChild(btn);
+  }
+}
+
+let authMode = "login";
+
+function setAuthMode(mode) {
+  authMode = mode;
+  $("auth-title").textContent = mode === "login" ? "Sign in" : "Create account";
+  $("auth-submit").textContent = mode === "login" ? "Sign in" : "Create account";
+  $("auth-switch").textContent = mode === "login"
+    ? "New here? Create an account" : "Have an account? Sign in";
+  $("auth-error").hidden = true;
+}
+
+async function submitAuth() {
+  const username = $("auth-username").value.trim();
+  const password = $("auth-password").value;
+  const errEl = $("auth-error");
+  errEl.hidden = true;
+  try {
+    const user = await api(`/api/auth/${authMode === "login" ? "login" : "register"}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    });
+    state.user = user;
+    $("auth-modal").close();
+    $("auth-password").value = "";
+    renderAuthBox();
+    await refreshWatchlist();
+    renderStockTable();
+    $("about-edit").hidden = !user.is_admin;
+  } catch (e) {
+    errEl.textContent = e.message;
+    errEl.hidden = false;
+  }
+}
+
+function initAuth() {
+  $("auth-submit").addEventListener("click", submitAuth);
+  $("auth-close").addEventListener("click", () => $("auth-modal").close());
+  $("auth-switch").addEventListener("click", () =>
+    setAuthMode(authMode === "login" ? "register" : "login"));
+  $("auth-form").addEventListener("submit", (e) => e.preventDefault());
+  $("auth-password").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); submitAuth(); }
+  });
+}
+
+// ---------------------------------------------------------------- stocks view
+let stocksLoaded = false;
+
+async function loadStocksView() {
+  if (!stocksLoaded) {
+    stocksLoaded = true;
+    const [sp, ipos] = await Promise.all([
+      api("/data/sp500.json"), api("/data/ipos.json"),
+    ]);
+    state.sp500 = sp.stocks;
+    state.ipos = ipos.stocks;
+    $("stock-search").addEventListener("input", renderStockTable);
+    renderIpoStrip();
+    fetchQuotes(state.ipos.map((s) => s.symbol)).then(renderIpoStrip);
+  }
+  renderStockTable();
+  renderWatchStrip();
+}
+
+async function fetchQuotes(symbols) {
+  const need = symbols.filter((s) => !(s in state.quotes));
+  if (!need.length) return;
+  try {
+    const quotes = await api(`/api/stocks/quotes?symbols=${need.slice(0, 30).join(",")}`);
+    for (const q of quotes) state.quotes[q.symbol] = q;
+  } catch { /* quotes are best-effort */ }
+}
+
+function quoteCells(symbol) {
+  const q = state.quotes[symbol];
+  if (!q) return `<td class="num">—</td><td class="num">—</td>`;
+  const up = q.change_pct >= 0;
+  return `<td class="num">$${q.price.toFixed(2)}</td>` +
+    `<td class="num chg ${up ? "up" : "down"}">${up ? "+" : ""}${q.change_pct.toFixed(2)}%</td>`;
+}
+
+function pinButton(symbol) {
+  const pinned = state.watchlist.includes(symbol);
+  const label = pinned ? "Unpin" : "Pin";
+  return `<button class="pin-btn ${pinned ? "pinned" : ""}" data-symbol="${symbol}" ` +
+    `title="${label} ${symbol}" aria-label="${label} ${symbol}">${pinned ? "★" : "☆"}</button>`;
+}
+
+async function togglePin(symbol) {
+  if (!state.user) { $("auth-modal").showModal(); return; }
+  const pinned = state.watchlist.includes(symbol);
+  try {
+    const r = pinned
+      ? await api(`/api/watchlist/${symbol}`, { method: "DELETE" })
+      : await api("/api/watchlist", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ symbol }),
+        });
+    state.watchlist = r.symbols;
+    renderWatchStrip();
+    renderStockTable();
+    renderIpoStrip();
+  } catch (e) {
+    alert(e.message);
+  }
+}
+
+function bindPinButtons(container) {
+  for (const btn of container.querySelectorAll(".pin-btn")) {
+    btn.addEventListener("click", () => togglePin(btn.dataset.symbol));
+  }
+}
+
+function renderStockTable() {
+  if (!state.sp500.length) return;
+  const q = $("stock-search").value.trim().toLowerCase();
+  const matches = q
+    ? state.sp500.filter((s) =>
+        s.symbol.toLowerCase().includes(q) || s.name.toLowerCase().includes(q))
+    : state.sp500;
+  const shown = matches.slice(0, 50);
+  $("table-title").textContent = q ? `Search: “${$("stock-search").value.trim()}”` : "S&P 500";
+  $("table-note").textContent = `Showing ${shown.length} of ${matches.length}` +
+    (q ? " matches" : " companies") + ". Prices load for searched and pinned stocks.";
+
+  $("stock-rows").innerHTML = shown.map((s) =>
+    `<tr><td>${pinButton(s.symbol)}</td><td class="sym">${s.symbol}</td>` +
+    `<td>${s.name}</td><td class="sector">${s.sector}</td>${quoteCells(s.symbol)}</tr>`
+  ).join("");
+  bindPinButtons($("stock-rows"));
+
+  if (q && shown.length && shown.length <= 30) {
+    fetchQuotes(shown.map((s) => s.symbol)).then(() => {
+      const rows = $("stock-rows").rows;
+      shown.forEach((s, i) => {
+        const tmp = document.createElement("tr");
+        tmp.innerHTML = quoteCells(s.symbol);
+        const [priceCell, chgCell] = [...tmp.children];
+        const cells = rows[i].querySelectorAll(".num");
+        cells[0].replaceWith(priceCell);
+        cells[1].replaceWith(chgCell);
+      });
+    });
+  }
+}
+
+function miniCard(symbol, name, sub, withUnpin) {
+  const q = state.quotes[symbol];
+  const up = q && q.change_pct >= 0;
+  return `<div class="mini-card">` +
+    (withUnpin ? `<button class="unpin" data-symbol="${symbol}" title="Unpin ${symbol}">✕</button>` : "") +
+    `<span class="tk">${symbol}</span><span class="nm">${name}</span>` +
+    (q ? `<div class="px">$${q.price.toFixed(2)}</div>` +
+         `<span class="chg ${up ? "up" : "down"}">${up ? "+" : ""}${q.change_pct.toFixed(2)}%</span>`
+       : `<div class="px">${sub}</div>`) +
+    `</div>`;
+}
+
+function renderIpoStrip() {
+  $("ipo-strip").innerHTML = state.ipos.map((s) =>
+    miniCard(s.symbol, `${s.name} · ${s.sector}`, `IPO ${s.ipo}`, false)).join("");
+}
+
+async function renderWatchStrip() {
+  const section = $("watch-section");
+  if (!state.user || !state.watchlist.length) { section.hidden = true; return; }
+  section.hidden = false;
+  await fetchQuotes(state.watchlist);
+  const names = {};
+  for (const s of [...state.sp500, ...state.ipos]) names[s.symbol] = s.name;
+  $("watch-strip").innerHTML = state.watchlist.map((sym) =>
+    miniCard(sym, names[sym] || (state.quotes[sym] && state.quotes[sym].name) || "", "", true)).join("");
+  for (const btn of $("watch-strip").querySelectorAll(".unpin")) {
+    btn.addEventListener("click", () => togglePin(btn.dataset.symbol));
+  }
+}
+
+async function refreshWatchlist() {
+  if (!state.user) return;
+  try {
+    const r = await api("/api/watchlist");
+    state.watchlist = r.symbols;
+    for (const q of r.quotes) state.quotes[q.symbol] = q;
+    renderWatchStrip();
+  } catch { /* signed out */ }
+}
+
+// ---------------------------------------------------------------- about
+let aboutLoaded = false;
+
+function renderMarkdown(md) {
+  const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const inline = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  const blocks = md.trim().split(/\n{2,}/);
+  return blocks.map((b) => {
+    if (b.startsWith("### ")) return `<h3>${inline(b.slice(4))}</h3>`;
+    if (b.startsWith("## ")) return `<h2>${inline(b.slice(3))}</h2>`;
+    if (b.startsWith("# ")) return `<h1>${inline(b.slice(2))}</h1>`;
+    const lines = b.split("\n");
+    if (lines.every((l) => l.startsWith("- ")))
+      return `<ul>${lines.map((l) => `<li>${inline(l.slice(2))}</li>`).join("")}</ul>`;
+    return `<p>${inline(b).replace(/\n/g, "<br>")}</p>`;
+  }).join("");
+}
+
+async function loadAbout() {
+  if (aboutLoaded) return;
+  aboutLoaded = true;
+  const r = await api("/api/about");
+  $("about-content").innerHTML = renderMarkdown(r.content);
+  $("about-edit").hidden = !(state.user && state.user.is_admin);
+
+  $("about-edit").addEventListener("click", async () => {
+    const current = await api("/api/about");
+    $("about-textarea").value = current.content;
+    $("about-editor").hidden = false;
+    $("about-content").hidden = true;
+  });
+  $("about-cancel").addEventListener("click", () => {
+    $("about-editor").hidden = true;
+    $("about-content").hidden = false;
+  });
+  $("about-save").addEventListener("click", async () => {
+    try {
+      const r2 = await api("/api/about", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: $("about-textarea").value }),
+      });
+      $("about-content").innerHTML = renderMarkdown(r2.content);
+      $("about-editor").hidden = true;
+      $("about-content").hidden = false;
+    } catch (e) {
+      alert(e.message);
+    }
+  });
+}
+
 // ---------------------------------------------------------------- chat
 const chatHistory = [];
 
@@ -412,6 +704,15 @@ async function init() {
   $("normalize").addEventListener("click", normalize);
   $("run").addEventListener("click", runBacktest);
   $("chat-form").addEventListener("submit", sendChat);
+  window.addEventListener("hashchange", route);
+  initAuth();
+  route();
+
+  api("/api/auth/me").then(async (r) => {
+    state.user = r.user;
+    renderAuthBox();
+    if (r.user) await refreshWatchlist();
+  }).catch(renderAuthBox);
 
   try {
     await loadMarket();
