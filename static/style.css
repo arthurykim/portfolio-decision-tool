@@ -1,0 +1,176 @@
+/* Portfolio Decision Tool — palette per dataviz reference instance */
+:root {
+  color-scheme: light;
+  --surface-1: #fcfcfb;
+  --page: #f9f9f7;
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --muted: #898781;
+  --grid: #e1e0d9;
+  --baseline: #c3c2b7;
+  --border: rgba(11, 11, 11, 0.10);
+  --series-1: #2a78d6;
+  --series-8: #e34948;
+  --delta-up: #006300;
+  --delta-down: #d03b3b;
+  --accent: #2a78d6;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --surface-1: #1a1a19;
+    --page: #0d0d0d;
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --muted: #898781;
+    --grid: #2c2c2a;
+    --baseline: #383835;
+    --border: rgba(255, 255, 255, 0.10);
+    --series-1: #3987e5;
+    --series-8: #e66767;
+    --delta-up: #0ca30c;
+    --delta-down: #d03b3b;
+    --accent: #3987e5;
+  }
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--text-primary);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.topbar { border-bottom: 1px solid var(--border); background: var(--surface-1); }
+.topbar-inner { max-width: 1200px; margin: 0 auto; padding: 20px 24px; }
+.topbar h1 { margin: 0; font-size: 20px; }
+.tagline { margin: 4px 0 0; color: var(--text-secondary); font-size: 13px; }
+
+/* Quote strip */
+.quotes {
+  max-width: 1200px; margin: 16px auto 0; padding: 0 24px;
+  display: flex; gap: 10px; overflow-x: auto;
+}
+.quote-card {
+  flex: 0 0 auto; min-width: 118px;
+  background: var(--surface-1); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 12px;
+}
+.quote-card .qt { font-size: 12px; font-weight: 600; }
+.quote-card .qp { font-size: 15px; font-variant-numeric: tabular-nums; }
+.quote-card .qc { font-size: 12px; font-variant-numeric: tabular-nums; }
+.qc.up { color: var(--delta-up); }
+.qc.down { color: var(--delta-down); }
+.quotes .note { color: var(--muted); font-size: 12px; align-self: center; white-space: nowrap; }
+
+/* Layout */
+.layout {
+  max-width: 1200px; margin: 16px auto; padding: 0 24px;
+  display: grid; grid-template-columns: 340px 1fr; gap: 16px;
+  align-items: start;
+}
+@media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface-1); border: 1px solid var(--border);
+  border-radius: 10px; padding: 16px;
+}
+.panel h2 { margin: 0 0 10px; font-size: 14px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-secondary); }
+.builder h2 + h2, .builder .dates + h2 { margin-top: 18px; }
+
+/* Presets */
+.presets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.chip {
+  border: 1px solid var(--border); background: transparent; color: var(--text-primary);
+  border-radius: 999px; padding: 4px 12px; font-size: 12px; cursor: pointer;
+}
+.chip:hover { border-color: var(--accent); color: var(--accent); }
+
+/* Allocation rows */
+.alloc-rows { display: flex; flex-direction: column; gap: 6px; }
+.alloc-row { display: grid; grid-template-columns: 52px 1fr 74px; gap: 8px; align-items: center; }
+.alloc-row .tk { font-weight: 600; font-size: 13px; }
+.alloc-row .nm { color: var(--text-secondary); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.alloc-row input {
+  width: 100%; padding: 5px 8px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--page); color: var(--text-primary); font-variant-numeric: tabular-nums;
+  font-size: 13px; text-align: right;
+}
+.alloc-footer { display: flex; justify-content: space-between; align-items: center; margin: 12px 0 4px; }
+.alloc-total { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.alloc-total.bad { color: var(--delta-down); }
+.alloc-total.ok { color: var(--delta-up); }
+
+.dates { display: flex; gap: 10px; }
+.dates label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-secondary); flex: 1; }
+.dates input {
+  padding: 5px 8px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--page); color: var(--text-primary); font-size: 13px;
+}
+
+.btn {
+  border-radius: 8px; padding: 8px 14px; font-size: 13px; cursor: pointer;
+  border: 1px solid var(--border); background: transparent; color: var(--text-primary);
+}
+.btn.primary {
+  width: 100%; margin-top: 16px; background: var(--accent); border-color: var(--accent);
+  color: #fff; font-weight: 600; padding: 10px 14px;
+}
+.btn.primary:disabled { opacity: 0.6; cursor: wait; }
+.btn.ghost { font-size: 12px; padding: 4px 10px; }
+.btn.ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+.error { color: var(--delta-down); font-size: 13px; margin: 10px 0 0; }
+
+/* Metrics tiles */
+.metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 16px; }
+.tile {
+  background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px;
+  padding: 12px 14px;
+}
+.tile .label { font-size: 12px; color: var(--text-secondary); }
+.tile .value { font-size: 22px; font-weight: 650; margin-top: 2px; }
+.tile .sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.tile .value.neg { color: var(--delta-down); }
+
+.chart-panel { margin-bottom: 16px; }
+.chart { position: relative; }
+.chart svg { display: block; width: 100%; height: auto; }
+.chart .axis-label { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.chart .gridline { stroke: var(--grid); stroke-width: 1; }
+.chart .baseline { stroke: var(--baseline); stroke-width: 1; }
+
+.tooltip {
+  position: absolute; pointer-events: none; display: none;
+  background: var(--surface-1); border: 1px solid var(--border); border-radius: 8px;
+  padding: 6px 10px; font-size: 12px; box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+  white-space: nowrap; z-index: 5;
+}
+.tooltip .tt-date { color: var(--text-secondary); }
+.tooltip .tt-val { font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.empty-state { color: var(--text-secondary); text-align: center; padding: 48px 16px; }
+
+/* Chat */
+.chat-hint { margin: 0 0 10px; color: var(--muted); font-size: 12px; }
+.chat-log { display: flex; flex-direction: column; gap: 8px; max-height: 340px; overflow-y: auto; margin-bottom: 10px; }
+.chat-msg { max-width: 85%; padding: 8px 12px; border-radius: 12px; font-size: 13px; white-space: pre-wrap; }
+.chat-msg.user { align-self: flex-end; background: var(--accent); color: #fff; border-bottom-right-radius: 4px; }
+.chat-msg.assistant {
+  align-self: flex-start; background: var(--page); border: 1px solid var(--border);
+  border-bottom-left-radius: 4px;
+}
+.chat-msg .src { display: block; margin-top: 6px; color: var(--muted); font-size: 11px; }
+.chat-msg.pending { color: var(--muted); font-style: italic; }
+.chat-form { display: flex; gap: 8px; }
+.chat-form input {
+  flex: 1; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--page); color: var(--text-primary); font-size: 13px;
+}
+.btn.chat-send { width: auto; margin-top: 0; padding: 8px 16px; }
+
+.disclaimer {
+  max-width: 1200px; margin: 24px auto; padding: 0 24px 24px;
+  color: var(--muted); font-size: 12px;
+}

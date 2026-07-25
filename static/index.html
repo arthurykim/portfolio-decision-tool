@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Portfolio Decision Tool</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <h1>Portfolio Decision Tool</h1>
+      <p class="tagline">Stress-test capital allocations against real historical market data.</p>
+    </div>
+  </header>
+
+  <section id="quotes" class="quotes" aria-label="Latest market quotes"></section>
+
+  <main class="layout">
+    <aside class="panel builder">
+      <h2>Allocation</h2>
+
+      <div class="presets" id="presets"></div>
+
+      <div id="alloc-rows" class="alloc-rows"></div>
+
+      <div class="alloc-footer">
+        <span id="alloc-total" class="alloc-total">Total: 0%</span>
+        <button id="normalize" class="btn ghost" type="button">Normalize to 100%</button>
+      </div>
+
+      <h2>Date range</h2>
+      <div class="dates">
+        <label>Start <input type="date" id="start-date" /></label>
+        <label>End <input type="date" id="end-date" /></label>
+      </div>
+
+      <button id="run" class="btn primary" type="button">Run backtest</button>
+      <p id="error" class="error" role="alert" hidden></p>
+    </aside>
+
+    <section class="results">
+      <div id="metrics" class="metrics" hidden></div>
+
+      <div class="panel chart-panel" id="equity-panel" hidden>
+        <h2>Growth of $1</h2>
+        <div id="equity-chart" class="chart"></div>
+      </div>
+
+      <div class="panel chart-panel" id="drawdown-panel" hidden>
+        <h2>Drawdown from peak</h2>
+        <div id="drawdown-chart" class="chart"></div>
+      </div>
+
+      <div class="panel empty-state" id="empty-state">
+        <p>Pick an allocation on the left (or a preset), then run a backtest.</p>
+      </div>
+
+      <div class="panel chat-panel">
+        <h2>Ask the assistant</h2>
+        <p class="chat-hint">Ask about metrics, asset classes, or strategies —
+          e.g. “What is max drawdown?” or “How does the All Weather portfolio work?”</p>
+        <div id="chat-log" class="chat-log" aria-live="polite"></div>
+        <form id="chat-form" class="chat-form">
+          <input id="chat-input" type="text" maxlength="2000" autocomplete="off"
+                 placeholder="Ask a question about investing concepts…" />
+          <button class="btn primary chat-send" type="submit">Send</button>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <footer class="disclaimer">
+    Educational tool only. Historical performance does not predict future results.
+    Nothing here is investment advice. Market data via Yahoo Finance, delayed.
+  </footer>
+
+  <script src="/app.js"></script>
+</body>
+</html>
