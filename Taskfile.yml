@@ -21,6 +21,13 @@ tasks:
     cmds:
       - "{{.PY}} -m pytest tests/ -q"
 
+  check:
+    desc: Full verification - compile, validate configs, run tests
+    cmds:
+      - "{{.PY}} -m py_compile main.py data.py backtest.py rag.py db.py auth.py scripts/refresh_market.py eval/ragas_eval.py"
+      - "{{.PY}} -c \"import yaml; [yaml.safe_load(open(f)) for f in ['.github/workflows/ci.yml', '.github/workflows/market-refresh.yml', 'docker-compose.yml']]\""
+      - "{{.PY}} -m pytest tests/ -q"
+
   refresh:
     desc: Refresh price data and regenerate the market snapshot
     cmds:
@@ -29,8 +36,11 @@ tasks:
   eval:
     desc: Run the RAGAS evaluation (needs ANTHROPIC_API_KEY)
     cmds:
-      - .venv/bin/pip install -q -r eval/requirements-eval.txt
-      - "{{.PY}} eval/ragas_eval.py"
+      # Isolated venv: ragas pins an older langchain stack than the app uses.
+      # Derived from the app venv's interpreter so binary wheels resolve.
+      - test -d .venv-eval || {{.PY}} -m venv .venv-eval
+      - .venv-eval/bin/pip install -q -r eval/requirements-eval.txt
+      - .venv-eval/bin/python eval/ragas_eval.py
 
   docker:build:
     desc: Build the container image
