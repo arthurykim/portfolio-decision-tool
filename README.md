@@ -137,6 +137,10 @@ the assistant is given the top 4 chunks, a rank-2 hit still lands in context.
 Reproduce with `task eval:retrieval`; per-question detail is written to
 `eval/retrieval_results.json`.
 
+**[docs/RETRIEVAL.md](docs/RETRIEVAL.md)** explains the pipeline in depth: the
+chunking strategy, the BM25 scoring formula with a worked example, why lexical
+retrieval was chosen over embeddings, and the known limitations.
+
 ### Generation quality
 
 `task eval` runs [RAGAS](https://docs.ragas.io) over the same golden set,
@@ -196,3 +200,4 @@ task deploy:aws       # ECR push + App Runner create/redeploy
 | `eval/` | RAGAS golden set + evaluation script |
 | `scripts/refresh_market.py` | Hourly snapshot generator (CI cron) |
 | `deploy/` | App Runner script + deployment docs |
+| `docs/RETRIEVAL.md` | How the RAG retrieval pipeline works |
