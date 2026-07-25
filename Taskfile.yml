@@ -1,0 +1,53 @@
+# Task runner — https://taskfile.dev  (brew install go-task)
+version: "3"
+
+vars:
+  PY: .venv/bin/python
+
+tasks:
+  setup:
+    desc: Create venv and install dependencies
+    cmds:
+      - python3 -m venv .venv
+      - .venv/bin/pip install -r requirements.txt pytest httpx
+
+  dev:
+    desc: Run the app locally with auto-reload (http://localhost:8000)
+    cmds:
+      - .venv/bin/uvicorn main:app --reload --port 8000
+
+  test:
+    desc: Run the test suite
+    cmds:
+      - "{{.PY}} -m pytest tests/ -q"
+
+  refresh:
+    desc: Refresh price data and regenerate the market snapshot
+    cmds:
+      - "{{.PY}} scripts/refresh_market.py"
+
+  eval:
+    desc: Run the RAGAS evaluation (needs ANTHROPIC_API_KEY)
+    cmds:
+      - .venv/bin/pip install -q -r eval/requirements-eval.txt
+      - "{{.PY}} eval/ragas_eval.py"
+
+  docker:build:
+    desc: Build the container image
+    cmds:
+      - docker build -t portfolio-decision-tool .
+
+  docker:up:
+    desc: Run the app in Docker (http://localhost:8000)
+    cmds:
+      - docker compose up --build
+
+  deploy:aws:
+    desc: Deploy to AWS App Runner (needs aws cli configured)
+    cmds:
+      - ./deploy/aws-apprunner.sh {{.CLI_ARGS | default "us-east-1"}}
+
+  default:
+    desc: List tasks
+    cmds:
+      - task --list
