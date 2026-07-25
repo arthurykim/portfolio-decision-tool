@@ -15,9 +15,15 @@ data, and learn the concepts as you go — in one self-contained web app.
   YTD / 1Y / 5Y / All ranges, with sparklines and an interactive price chart.
   A GitHub Actions cron refreshes a committed market snapshot every hour
   during US trading hours.
-- **Stocks** — searchable S&P 500 catalog (503 constituents) plus a curated
-  recent-tech-IPO strip, with on-demand quotes. Sign in to pin stocks to a
-  personal watchlist.
+- **Today's movers** — top 5 risers and fallers across the S&P 500 by 1-day
+  change, computed live from the full catalog.
+- **Stocks** — paginated, searchable S&P 500 catalog (503 constituents across
+  11 pages) plus a curated recent-tech-IPO strip, all with live quotes. Sign in
+  to pin stocks to a personal watchlist.
+- **Learn** — original explainer articles (What are ETFs? · What are index
+  funds? · Retirement accounts: 401(k)/Traditional IRA/Roth IRA · Taxable vs.
+  tax-advantaged), reachable from a nav dropdown or tile grid, plus a
+  "where to start" panel linking to major brokerages.
 - **Accounts** — lightweight self-hosted auth: scrypt-hashed passwords,
   HMAC-signed HttpOnly session cookies, SQLite storage, zero external
   dependencies. The first registered user becomes the site admin and can edit
@@ -132,10 +138,10 @@ task deploy:aws       # ECR push + App Runner create/redeploy
 | `data.py` | Price download, parquet cache, period returns |
 | `backtest.py` | Backtest engine and metrics |
 | `rag.py` | BM25 index + optional Claude generation |
-| `knowledge/` | Finance knowledge base (5 markdown files) |
+| `knowledge/` | Finance knowledge base + Learn articles (9 markdown files) |
 | `static/` | Frontend (HTML/CSS/JS, no framework) |
 | `db.py` / `auth.py` | SQLite persistence + stdlib session auth |
-| `tests/` | 43 pytest tests, hermetic via synthetic fixtures |
+| `tests/` | 46 pytest tests, hermetic via synthetic fixtures |
 | `eval/` | RAGAS golden set + evaluation script |
 | `scripts/refresh_market.py` | Hourly snapshot generator (CI cron) |
 | `deploy/` | App Runner script + deployment docs |
