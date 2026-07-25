@@ -180,6 +180,49 @@ def stock_catalog() -> dict[str, dict]:
     return catalog
 
 
+INDEX_HISTORY = STATIC_DATA.parent.parent / "data" / "sp500_history.json"
+
+
+@lru_cache(maxsize=1)
+def index_history() -> dict:
+    """Point-in-time S&P 500 membership, or {} if it hasn't been generated."""
+    if not INDEX_HISTORY.exists():
+        return {}
+    return json.loads(INDEX_HISTORY.read_text())
+
+
+def members_on(as_of: str) -> list[str]:
+    """Who was in the index on `as_of`, by undoing every later change."""
+    hist = index_history()
+    if not hist:
+        return []
+    members = set(hist["current"])
+    for change in reversed(hist["changes"]):
+        if change["date"] <= as_of:
+            break
+        if change["added"]:
+            members.discard(change["added"])
+        if change["removed"]:
+            members.add(change["removed"])
+    return sorted(members)
+
+
+def survivorship_gap(as_of: str) -> dict:
+    """How much of the `as_of` index is missing from today's list."""
+    then, now = set(members_on(as_of)), set(index_history().get("current", []))
+    if not then:
+        return {}
+    gone = sorted(then - now)
+    return {
+        "as_of": as_of,
+        "members_then": len(then),
+        "members_now": len(now),
+        "departed": len(gone),
+        "departed_pct": round(100 * len(gone) / len(then), 1),
+        "examples": gone[:12],
+    }
+
+
 def get_stock_quotes(symbols: list[str]) -> list[dict]:
     """Latest price + 1D change for catalog symbols. Batched, 10-min cache."""
     now = time.time()

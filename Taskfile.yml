@@ -33,6 +33,11 @@ tasks:
     cmds:
       - "{{.PY}} scripts/create_admin.py"
 
+  index:history:
+    desc: Rebuild point-in-time S&P 500 membership from index change history
+    cmds:
+      - "{{.PY}} scripts/build_index_history.py"
+
   refresh:
     desc: Refresh price data and regenerate the market snapshot
     cmds:

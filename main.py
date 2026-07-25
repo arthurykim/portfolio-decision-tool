@@ -24,7 +24,8 @@ from auth import (
 from backtest import run_backtest
 from data import (
     RANGES, TICKERS, annualized_inflation, get_movers, get_stock_quotes,
-    load_universe, period_returns, risk_free_rate, stock_catalog,
+    index_history, load_universe, members_on, period_returns, risk_free_rate,
+    stock_catalog, survivorship_gap,
 )
 from rag import answer as rag_answer
 
@@ -325,6 +326,24 @@ def stock_movers():
     except Exception as exc:
         logger.warning("Movers failed: %s", exc)
         raise HTTPException(status_code=503, detail="Quote source unavailable")
+
+
+@app.get("/api/index-history")
+def index_history_summary(as_of: str = Query("2010-01-01", pattern=r"^\d{4}-\d{2}-\d{2}$")):
+    """Point-in-time S&P 500 membership and the survivorship gap vs today."""
+    hist = index_history()
+    if not hist:
+        raise HTTPException(
+            status_code=503,
+            detail="Index history not generated. Run scripts/build_index_history.py",
+        )
+    return {
+        "source": hist["source"],
+        "coverage_from": hist["coverage_from"],
+        "changes": len(hist["changes"]),
+        "survivorship": survivorship_gap(as_of),
+        "members": members_on(as_of),
+    }
 
 
 @app.get("/api/watchlist")

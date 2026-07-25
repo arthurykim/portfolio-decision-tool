@@ -58,6 +58,7 @@ data, and learn the concepts as you go — in one self-contained web app.
 │  ├── /api/auth/*         register / login / logout (auth.py)         │
 │  ├── /api/watchlist      per-user pinned stocks (db.py, SQLite)      │
 │  ├── /api/about          editable site content (admin)               │
+│  ├── /api/index-history  point-in-time S&P 500 membership            │
 │  └── /                   static frontend (vanilla JS, SVG charts)    │
 │                                                                      │
 │  data.py — yfinance download → parquet cache (hourly TTL)            │
@@ -178,10 +179,15 @@ task deploy:aws       # ECR push + App Runner create/redeploy
   and the UI labels results as such.
 - Windows clip to the overlapping history of the selected tickers (e.g. VXUS
   data starts in 2011).
-- **Known limitation — survivorship bias:** the stock catalog is the *current*
-  S&P 500 membership, so companies that were delisted or went bankrupt are
-  absent. Any analysis built on today's constituents is biased upward relative
-  to what an investor would actually have experienced.
+- **Survivorship bias — measured, not just disclaimed.** A current-constituents
+  list hides every company that failed out of the index. `scripts/build_index_history.py`
+  replays 406 dated S&P 500 additions/removals (Wikipedia, back to 1976) backward
+  from today's membership to reconstruct **point-in-time** constituents, exposed at
+  `GET /api/index-history?as_of=YYYY-MM-DD`. The result quantifies the bias:
+  **211 of the 506 companies in the January 2010 index (41.7%) are gone today** —
+  including Lehman Brothers, Sears, and Twitter. Backtests themselves use ETFs,
+  whose historical prices already reflect their holdings at the time, so they are
+  unaffected; this matters for any future stock-level analysis.
 - `data/market_snapshot.json` is refreshed hourly by CI and doubles as a
   public, versioned record of the dashboard numbers.
 
@@ -199,5 +205,6 @@ task deploy:aws       # ECR push + App Runner create/redeploy
 | `tests/` | 57 pytest tests, hermetic via synthetic fixtures |
 | `eval/` | RAGAS golden set + evaluation script |
 | `scripts/refresh_market.py` | Hourly snapshot generator (CI cron) |
+| `scripts/build_index_history.py` | Point-in-time S&P 500 membership reconstruction |
 | `deploy/` | App Runner script + deployment docs |
 | `docs/RETRIEVAL.md` | How the RAG retrieval pipeline works |
