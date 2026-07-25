@@ -28,6 +28,11 @@ tasks:
       - "{{.PY}} -c \"import yaml; [yaml.safe_load(open(f)) for f in ['.github/workflows/ci.yml', '.github/workflows/market-refresh.yml', 'docker-compose.yml']]\""
       - "{{.PY}} -m pytest tests/ -q"
 
+  admin:
+    desc: 'Create/promote an admin: ADMIN_USER=you ADMIN_PASS=secret task admin'
+    cmds:
+      - "{{.PY}} scripts/create_admin.py"
+
   refresh:
     desc: Refresh price data and regenerate the market snapshot
     cmds:
