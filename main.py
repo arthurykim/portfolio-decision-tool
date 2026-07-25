@@ -4,6 +4,7 @@ Serves the JSON API under /api/* and the static frontend at /.
 Run locally:  uvicorn main:app --reload
 """
 import logging
+import time
 from pathlib import Path
 
 from env import load_env
@@ -27,9 +28,11 @@ from data import (
     index_history, load_universe, members_on, period_returns, risk_free_rate,
     stock_catalog, survivorship_gap,
 )
-from rag import answer as rag_answer
+from observability import metrics, new_request_id, request_id_var, setup_logging
+from rag import _llm_available as llm_available, answer as rag_answer, get_index
 
-logger = logging.getLogger("uvicorn.error")
+setup_logging()
+logger = logging.getLogger("app")
 
 app = FastAPI(
     title="Portfolio Decision Tool API",
@@ -102,7 +105,56 @@ class AboutUpdate(BaseModel):
 # ---------------------------------------------------------------------------
 @app.get("/healthz")
 def healthz():
+    """Liveness: is the process up? Deliberately dependency-free so a slow
+    upstream never causes the orchestrator to restart a healthy container."""
     return {"status": "ok"}
+
+
+@app.get("/readyz")
+def readyz(response: Response):
+    """Readiness: can this instance actually serve traffic? Checks each
+    dependency and reports which one is broken rather than a bare 503."""
+    checks: dict[str, dict] = {}
+
+    try:
+        px = _prices()
+        checks["prices"] = {"ok": True, "as_of": px.index[-1].date().isoformat(),
+                            "rows": len(px), "tickers": len(px.columns)}
+    except Exception as exc:
+        checks["prices"] = {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+
+    try:
+        with db.connect() as conn:
+            conn.execute("SELECT 1").fetchone()
+        checks["database"] = {"ok": True}
+    except Exception as exc:
+        checks["database"] = {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+
+    try:
+        checks["knowledge_base"] = {"ok": True, "chunks": len(get_index().chunks)}
+    except Exception as exc:
+        checks["knowledge_base"] = {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+
+    # Informational, never fatal: the chat degrades to extractive without a key.
+    checks["llm"] = {"ok": True, "configured": llm_available(), "mode":
+                     "gemini" if llm_available() else "extractive"}
+
+    ready = all(c["ok"] for c in checks.values())
+    if not ready:
+        response.status_code = 503
+    return {"ready": ready, "checks": checks}
+
+
+@app.get("/metrics")
+def prometheus_metrics():
+    """Prometheus text exposition — scrape-compatible, no client library."""
+    return Response(content=metrics.prometheus(), media_type="text/plain; version=0.0.4")
+
+
+@app.get("/metrics.json")
+def metrics_json():
+    """Same counters as /metrics, readable without a Prometheus server."""
+    return metrics.snapshot()
 
 
 @app.get("/api/tickers")
@@ -258,10 +310,17 @@ def backtest(req: BacktestRequest):
 @app.post("/api/chat")
 def chat(req: ChatRequest):
     try:
-        return rag_answer(req.message, [t.model_dump() for t in req.history])
+        result = rag_answer(req.message, [t.model_dump() for t in req.history])
     except Exception as exc:
+        metrics.inc("chat_errors_total")
         logger.warning("Chat failed: %s", exc)
         raise HTTPException(status_code=500, detail="Chat unavailable")
+    # The key signal: a fallback to extractive means generation is degraded.
+    metrics.inc("chat_answers_total", {"mode": result["mode"]})
+    if result["mode"] != "gemini" and llm_available():
+        metrics.inc("llm_fallbacks_total")
+        logger.warning("Chat degraded to extractive despite a configured key")
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -429,6 +488,42 @@ def about():
 def update_about(req: AboutUpdate, user: dict = Depends(require_admin)):
     db.set_content("about", req.content)
     return {"content": req.content}
+
+
+@app.middleware("http")
+async def observe(request, call_next):
+    """Correlate, time, and count every request."""
+    request_id = request.headers.get("x-request-id") or new_request_id()
+    token = request_id_var.set(request_id)
+    started = time.perf_counter()
+    status = 500
+    try:
+        response = await call_next(request)
+        status = response.status_code
+        # Set here, not in an outer middleware: the contextvar is reset in the
+        # finally block below, so anything outside this scope reads the default.
+        response.headers["X-Request-ID"] = request_id
+        return response
+    finally:
+        elapsed = time.perf_counter() - started
+        # Use the route template, not the raw path, so /api/prices/{ticker}
+        # is one metric series instead of one per ticker.
+        route = request.scope.get("route")
+        path = getattr(route, "path", request.url.path)
+        labels = {"method": request.method, "path": path, "status": str(status)}
+        metrics.inc("http_requests_total", labels)
+        metrics.observe("http_request_duration_seconds",
+                        elapsed, {"method": request.method, "path": path})
+        if status >= 500:
+            metrics.inc("http_errors_total", {"path": path, "status": str(status)})
+        logger.info(
+            "%s %s %s %.1fms", request.method, request.url.path, status, elapsed * 1000,
+            extra={"extra_fields": {
+                "method": request.method, "path": request.url.path,
+                "status": status, "duration_ms": round(elapsed * 1000, 1),
+            }},
+        )
+        request_id_var.reset(token)
 
 
 @app.middleware("http")

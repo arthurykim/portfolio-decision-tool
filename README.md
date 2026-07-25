@@ -40,6 +40,11 @@ data, and learn the concepts as you go — in one self-contained web app.
   against the actual T-bill rate** (derived from BIL, not assumed zero),
   **Sortino**, **Calmar**, max drawdown, and **longest time underwater**.
   Every run is also summarized in plain English for non-finance readers.
+- **Observability** — every request gets a correlation ID (`X-Request-ID`),
+  structured JSON logs to stdout, Prometheus metrics at `/metrics`, and a
+  `/readyz` probe that names which dependency is broken rather than returning a
+  bare 503. A `llm_fallbacks_total` counter makes the chat's silent degradation
+  to extractive mode visible instead of invisible.
 - **RAG chat assistant** — asks-anything box over a curated finance knowledge
   base (metrics, asset classes, strategies, market history) using BM25
   retrieval. With a free `GOOGLE_API_KEY` it writes grounded answers with
@@ -79,6 +84,8 @@ retrieved source passages cited beneath it:
 │  ├── /api/watchlist      per-user pinned stocks (db.py, SQLite)      │
 │  ├── /api/about          editable site content (admin)               │
 │  ├── /api/index-history  point-in-time S&P 500 membership            │
+│  ├── /healthz /readyz    liveness + per-dependency readiness         │
+│  ├── /metrics            Prometheus counters & latency histograms    │
 │  └── /                   static frontend (vanilla JS, SVG charts)    │
 │                                                                      │
 │  data.py — yfinance download → parquet cache (hourly TTL)            │
@@ -226,7 +233,8 @@ task deploy:aws       # ECR push + App Runner create/redeploy
 | `knowledge/` | Finance knowledge base + Learn articles (9 markdown files) |
 | `static/` | Frontend (HTML/CSS/JS, no framework) |
 | `db.py` / `auth.py` | SQLite persistence + stdlib session auth |
-| `tests/` | 57 pytest tests, hermetic via synthetic fixtures |
+| `observability.py` | JSON logging, request IDs, metrics (stdlib only) |
+| `tests/` | 83 pytest tests, hermetic via synthetic fixtures |
 | `eval/` | RAGAS golden set + evaluation script |
 | `scripts/refresh_market.py` | Hourly snapshot generator (CI cron) |
 | `scripts/build_index_history.py` | Point-in-time S&P 500 membership reconstruction |
