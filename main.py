@@ -6,6 +6,10 @@ Run locally:  uvicorn main:app --reload
 import logging
 from pathlib import Path
 
+from env import load_env
+
+load_env()  # populate os.environ from .env before other modules read it
+
 import pandas as pd
 from fastapi import Depends, FastAPI, HTTPException, Query, Response
 from fastapi.middleware.cors import CORSMiddleware

@@ -12,6 +12,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from env import load_env  # noqa: E402
+
+load_env()
+
 import db  # noqa: E402
 from auth import USERNAME_RE, hash_password  # noqa: E402
 

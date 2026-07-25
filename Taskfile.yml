@@ -66,3 +66,8 @@ tasks:
     desc: List tasks
     cmds:
       - task --list
+
+  eval:retrieval:
+    desc: Score BM25 retrieval against the golden set (no API key needed)
+    cmds:
+      - "{{.PY}} eval/retrieval_eval.py"

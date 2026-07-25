@@ -107,13 +107,39 @@ Without a key the chat still answers from the knowledge base in extractive mode.
 ## Testing & evaluation
 
 ```bash
-task test     # unit + API tests; hermetic (synthetic data seeded if no cache)
-task eval     # RAGAS metrics for the chat assistant (needs ANTHROPIC_API_KEY)
+task test            # 57 unit + API tests; hermetic (synthetic data if no cache)
+task eval:retrieval  # retrieval quality — no API key needed
+task eval            # RAGAS generation quality (needs ANTHROPIC_API_KEY)
 ```
 
-The RAGAS harness scores faithfulness, context precision, and context recall
-against a 12-question golden set (`eval/golden_qa.jsonl`) and writes
-per-case results to `eval/results.json`.
+### Retrieval quality
+
+The RAG pipeline splits into a **retrieval** half (BM25 over 9 knowledge files →
+61 section-level chunks) and a **generation** half (Claude). Retrieval runs
+entirely locally, so its quality is measurable offline at zero cost — scored
+against a 16-question golden set with the expected source file labelled:
+
+| Metric | Result | Meaning |
+|---|---|---|
+| recall@1 | **87.5%** | correct file ranked first |
+| recall@3 | **100%** | correct file within the top 3 |
+| MRR | **0.938** | mean reciprocal rank of the correct file |
+
+Both misses rank the correct file **second**, and both are genuine ambiguities
+rather than failures: "why did 60/40 struggle in 2022?" retrieves the 60/40
+strategy page above the market-history page, and "what does TLT hold?" retrieves
+the strategies page that discusses TLT's role above its asset-class entry. Since
+the assistant is given the top 4 chunks, a rank-2 hit still lands in context.
+
+Reproduce with `task eval:retrieval`; per-question detail is written to
+`eval/retrieval_results.json`.
+
+### Generation quality
+
+`task eval` runs [RAGAS](https://docs.ragas.io) over the same golden set,
+scoring faithfulness (is the answer grounded in the retrieved passages?),
+context precision, and context recall. It needs an `ANTHROPIC_API_KEY` because
+it uses an LLM as judge, and writes to `eval/results.json`.
 
 ## Deployment
 

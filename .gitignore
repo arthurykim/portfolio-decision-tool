@@ -10,3 +10,4 @@ eval/results.json
 TODO.csv
 .venv-eval/
 .cursor/
+eval/retrieval_results.json

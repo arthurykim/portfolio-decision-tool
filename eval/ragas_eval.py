@@ -15,6 +15,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from env import load_env  # noqa: E402
+
+load_env()
+
 from langchain_anthropic import ChatAnthropic  # noqa: E402
 from ragas import EvaluationDataset, evaluate  # noqa: E402
 from ragas.llms import LangchainLLMWrapper  # noqa: E402
