@@ -3,6 +3,7 @@ version: "3"
 
 vars:
   PY: .venv/bin/python
+  PORT: '{{.PORT | default "8000"}}'
 
 tasks:
   setup:
@@ -12,9 +13,30 @@ tasks:
       - .venv/bin/pip install -r requirements.txt -r requirements-dev.txt
 
   dev:
-    desc: Run the app locally with auto-reload (http://localhost:8000)
+    desc: Run the app locally with auto-reload (PORT=8001 task dev to override)
     cmds:
-      - .venv/bin/uvicorn main:app --reload --port 8000
+      - .venv/bin/uvicorn main:app --reload --port {{.PORT}}
+
+  kill:
+    desc: Stop whatever is serving the app port
+    silent: true
+    cmds:
+      - |
+        # lsof exits non-zero when nothing matches; that is not an error here.
+        pids=$(lsof -ti :{{.PORT}} 2>/dev/null || true)
+        if [ -z "$pids" ]; then
+          echo "nothing listening on port {{.PORT}}"
+        else
+          echo "$pids" | xargs kill
+          echo "stopped $(echo "$pids" | wc -w | tr -d ' ') process(es) on port {{.PORT}}"
+        fi
+
+  restart:
+    desc: Stop the running server and start a fresh one
+    cmds:
+      - task: kill
+      - sleep 1
+      - task: dev
 
   test:
     desc: Run the test suite

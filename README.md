@@ -74,10 +74,14 @@ static page, and the whole thing ships as one Docker image.
 With [Task](https://taskfile.dev) (`brew install go-task`):
 
 ```bash
-task setup    # create venv, install deps
-task dev      # run at http://localhost:8000
-task test     # run the test suite
+task setup     # create venv, install deps
+task dev       # run at http://localhost:8000
+task kill      # stop the running server
+task restart   # kill + start fresh
+task test      # run the test suite
 ```
+
+`PORT=8001 task dev` (and `task kill`, `task restart`) to use a different port.
 
 Without Task:
 
