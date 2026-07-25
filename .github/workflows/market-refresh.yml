@@ -25,5 +25,11 @@ jobs:
           git config user.name "Arthur Kim"
           git config user.email "276535439+arthurykim@users.noreply.github.com"
           git add data/market_snapshot.json
-          git diff --cached --quiet || git commit -m "update market snapshot"
-          git push
+          git diff --cached --quiet && exit 0
+          git commit -m "update market snapshot"
+          # Retry: a push landing on main between checkout and push rejects ours.
+          for attempt in 1 2 3; do
+            git push && exit 0
+            git pull --rebase origin main
+          done
+          exit 1
