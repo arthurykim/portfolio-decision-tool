@@ -32,8 +32,12 @@ data, and learn the concepts as you go — in one self-contained web app.
   into any supported fund 1–30 years ago, with the resulting growth curve,
   gain, and CAGR.
 - **Backtest lab** — weight any mix of the 11 funds (presets: 60/40,
-  Three-Fund, All Weather, Golden Butterfly), pick a date window, and get the
-  equity curve, drawdown chart, CAGR, volatility, Sharpe, and max drawdown.
+  Three-Fund, All Weather, Golden Butterfly), pick a date window, and get an
+  equity curve **overlaid against the S&P 500**, a drawdown chart, and a full
+  risk panel: CAGR, **real (inflation-adjusted) CAGR**, volatility, **Sharpe
+  against the actual T-bill rate** (derived from BIL, not assumed zero),
+  **Sortino**, **Calmar**, max drawdown, and **longest time underwater**.
+  Every run is also summarized in plain English for non-finance readers.
 - **RAG chat assistant** — asks-anything box over a curated finance knowledge
   base (metrics, asset classes, strategies, market history) using BM25
   retrieval. With an `ANTHROPIC_API_KEY` it generates grounded answers with
@@ -141,7 +145,7 @@ task deploy:aws       # ECR push + App Runner create/redeploy
 | `knowledge/` | Finance knowledge base + Learn articles (9 markdown files) |
 | `static/` | Frontend (HTML/CSS/JS, no framework) |
 | `db.py` / `auth.py` | SQLite persistence + stdlib session auth |
-| `tests/` | 46 pytest tests, hermetic via synthetic fixtures |
+| `tests/` | 57 pytest tests, hermetic via synthetic fixtures |
 | `eval/` | RAGAS golden set + evaluation script |
 | `scripts/refresh_market.py` | Hourly snapshot generator (CI cron) |
 | `deploy/` | App Runner script + deployment docs |
