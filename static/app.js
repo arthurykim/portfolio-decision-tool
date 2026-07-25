@@ -32,6 +32,8 @@ async function api(path, opts) {
 
 const fmtPct = (x, dp = 1) => `${(x * 100).toFixed(dp)}%`;
 const fmtMoney = (x) => x.toLocaleString("en-US", { style: "currency", currency: "USD" });
+const fmtMoneyCompact = (x) =>
+  x.toLocaleString("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 });
 const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
 // ---------------------------------------------------------------- charts
@@ -46,7 +48,7 @@ function sparkline(values, { width = 90, height = 28 } = {}) {
     `<path d="M ${pts.join(" L ")}" fill="none" stroke="${color}" stroke-width="1.5"></path></svg>`;
 }
 
-function drawChart(containerId, dates, values, { color, area = false, fmt }) {
+function drawChart(containerId, dates, values, { color, area = false, fmt, fmtAxis = fmt }) {
   const container = $(containerId);
   container.innerHTML = "";
 
@@ -71,7 +73,7 @@ function drawChart(containerId, dates, values, { color, area = false, fmt }) {
     const gy = y(v);
     svg.innerHTML +=
       `<line class="gridline" x1="${pad.left}" x2="${W - pad.right}" y1="${gy}" y2="${gy}"></line>` +
-      `<text class="axis-label" x="${pad.left - 8}" y="${gy + 4}" text-anchor="end">${fmt(v)}</text>`;
+      `<text class="axis-label" x="${pad.left - 8}" y="${gy + 4}" text-anchor="end">${fmtAxis(v)}</text>`;
   }
   for (const i of [0, Math.floor(values.length / 2), values.length - 1]) {
     const anchor = i === 0 ? "start" : i === values.length - 1 ? "end" : "middle";
@@ -229,7 +231,7 @@ async function runWhatIf() {
       `<div class="value ${cls}">${value}</div><div class="sub">${sub}</div></div>`
     ).join("");
     drawChart("wi-chart", g.curve.dates, g.curve.values,
-      { color: cssVar("--series-1"), area: true, fmt: (v) => fmtMoney(v) });
+      { color: cssVar("--series-1"), area: true, fmt: fmtMoney, fmtAxis: fmtMoneyCompact });
   } catch (e) {
     $("wi-result").hidden = false;
     $("wi-metrics").innerHTML = `<p class="error">${e.message}</p>`;
