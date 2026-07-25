@@ -37,18 +37,7 @@ def run_backtest(
     start: str | pd.Timestamp | None = None,
     end: str | pd.Timestamp | None = None,
 ) -> BacktestResult:
-    """
-    Run a continuously-rebalanced portfolio backtest.
-
-    Args:
-        prices: wide DataFrame of Close prices (columns = tickers)
-        allocation: {ticker: weight}, weights must sum to ~1.0
-        start, end: optional date bounds
-
-    Returns:
-        BacktestResult with equity curve and standard metrics.
-    """
-    # --- validate ---
+    """Run a daily-rebalanced backtest of {ticker: weight} over [start, end]."""
     weight_sum = sum(allocation.values())
     if not np.isclose(weight_sum, 1.0, atol=1e-3):
         raise ValueError(f"Allocation weights must sum to 1.0, got {weight_sum:.4f}")
@@ -57,7 +46,6 @@ def run_backtest(
     if missing:
         raise ValueError(f"Tickers not in price data: {missing}")
 
-    # --- slice & clean ---
     cols = list(allocation.keys())
     px = prices[cols].copy()
     if start is not None:
@@ -69,16 +57,11 @@ def run_backtest(
     if len(px) < 2:
         raise ValueError("Not enough overlapping price data for selected tickers/range")
 
-    # --- compute weighted daily returns (continuous rebalancing) ---
     daily_rets = px.pct_change().dropna()
     weights = pd.Series(allocation)[cols]
-    port_rets = daily_rets @ weights  # weighted sum across tickers
-
-    # --- equity curve ---
+    port_rets = daily_rets @ weights
     equity = (1 + port_rets).cumprod()
-    equity.iloc[0] = equity.iloc[0]  # noop, just to be explicit
 
-    # --- metrics ---
     total_return = equity.iloc[-1] - 1
     years = (equity.index[-1] - equity.index[0]).days / 365.25
     cagr = (equity.iloc[-1]) ** (1 / years) - 1 if years > 0 else 0.0
