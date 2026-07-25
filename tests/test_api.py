@@ -40,6 +40,29 @@ def test_backtest_60_40():
     assert len(body["drawdown"]["dates"]) > 0
 
 
+def test_backtest_returns_risk_metrics_and_benchmark():
+    r = client.post("/api/backtest", json={"allocation": {"SPY": 0.6, "AGG": 0.4}})
+    body = r.json()
+    m = body["metrics"]
+    for field in ("real_cagr", "sortino", "calmar", "longest_drawdown_days",
+                  "risk_free_rate", "inflation_rate"):
+        assert field in m, field
+    assert m["real_cagr"] < m["cagr"]           # inflation drags nominal down
+    assert m["risk_free_rate"] > 0              # derived from BIL, not hardcoded 0
+    assert m["longest_drawdown_days"] > 0
+
+    bench = body["benchmark"]
+    assert bench["ticker"] == "SPY"
+    # Benchmark must cover the same window to be comparable.
+    assert bench["metrics"]["start"] == m["start"]
+    assert bench["metrics"]["end"] == m["end"]
+
+
+def test_backtest_omits_benchmark_when_portfolio_is_the_benchmark():
+    body = client.post("/api/backtest", json={"allocation": {"SPY": 1.0}}).json()
+    assert body["benchmark"] is None
+
+
 def test_backtest_rejects_bad_weights():
     r = client.post("/api/backtest", json={"allocation": {"SPY": 0.9}})
     assert r.status_code == 422
