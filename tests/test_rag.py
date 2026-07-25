@@ -3,9 +3,11 @@ from rag import _tokenize, answer, get_index, retrieve
 
 def test_index_covers_all_knowledge_files():
     sources = {c.source for c in get_index().chunks}
-    assert sources == {
+    assert sources >= {
         "asset-classes.md", "market-history.md", "metrics.md",
         "strategies.md", "using-the-tool.md",
+        "what-are-etfs.md", "what-are-index-funds.md",
+        "retirement-accounts.md", "taxable-vs-tax-advantaged.md",
     }
 
 

@@ -122,22 +122,54 @@ def get_stock_quotes(symbols: list[str]) -> list[dict]:
     now = time.time()
     with _stock_lock:
         missing = [s for s in symbols if s not in _stock_cache or now - _stock_cache[s][0] > STOCK_QUOTE_TTL]
-    if missing:
-        df = yf.download(missing, period="5d", auto_adjust=True, progress=False)
-        closes = df["Close"] if isinstance(df.columns, pd.MultiIndex) else df[["Close"]].rename(columns={"Close": missing[0]})
+    # Chunked: Yahoo silently drops most tickers on very large batch requests.
+    for i in range(0, len(missing), 100):
+        chunk = missing[i:i + 100]
+        try:
+            df = yf.download(chunk, period="5d", auto_adjust=True, progress=False)
+        except Exception:
+            continue
+        closes = df["Close"] if isinstance(df.columns, pd.MultiIndex) else df[["Close"]].rename(columns={"Close": chunk[0]})
         closes = closes.dropna(how="all")
-        if len(closes) >= 2:
-            last, prev = closes.iloc[-1], closes.iloc[-2]
-            with _stock_lock:
-                for s in missing:
-                    if s in closes.columns and pd.notna(last.get(s)) and pd.notna(prev.get(s)):
-                        _stock_cache[s] = (now, {
-                            "symbol": s,
-                            "price": round(float(last[s]), 2),
-                            "change_pct": round(float(last[s] / prev[s] - 1) * 100, 2),
-                        })
+        if len(closes) < 2:
+            continue
+        last, prev = closes.iloc[-1], closes.iloc[-2]
+        with _stock_lock:
+            for s in chunk:
+                if s in closes.columns and pd.notna(last.get(s)) and pd.notna(prev.get(s)):
+                    _stock_cache[s] = (now, {
+                        "symbol": s,
+                        "price": round(float(last[s]), 2),
+                        "change_pct": round(float(last[s] / prev[s] - 1) * 100, 2),
+                    })
     with _stock_lock:
         return [_stock_cache[s][1] for s in symbols if s in _stock_cache]
+
+
+_movers_cache: tuple[float, dict] | None = None
+
+
+def rank_movers(quotes: list[dict], top: int = 5) -> dict:
+    """Split quotes into the biggest 1D gainers and losers."""
+    ranked = sorted(quotes, key=lambda q: q["change_pct"], reverse=True)
+    return {"gainers": ranked[:top], "losers": ranked[-top:][::-1]}
+
+
+def get_movers(top: int = 5) -> dict:
+    """Top movers across the whole stock catalog, cached for STOCK_QUOTE_TTL."""
+    global _movers_cache
+    now = time.time()
+    if _movers_cache and now - _movers_cache[0] < STOCK_QUOTE_TTL:
+        return _movers_cache[1]
+    catalog = stock_catalog()
+    quotes = get_stock_quotes(list(catalog))
+    if len(quotes) < 5:
+        raise ValueError("insufficient quote coverage for movers")
+    for q in quotes:
+        q.setdefault("name", catalog.get(q["symbol"], {}).get("name", ""))
+    movers = rank_movers(quotes, top=top)
+    _movers_cache = (now, movers)
+    return movers
 
 
 if __name__ == "__main__":

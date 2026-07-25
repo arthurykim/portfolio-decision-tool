@@ -95,6 +95,35 @@ def test_growth_accepts_large_amounts():
     assert r.json()["final_value"] > 100_000_000 * 0.1  # sane output for $100M
 
 
+def test_learn_index_and_articles():
+    articles = client.get("/api/learn").json()
+    assert len(articles) == 4
+    assert {a["slug"] for a in articles} == {
+        "what-are-etfs", "what-are-index-funds",
+        "retirement-accounts", "taxable-vs-tax-advantaged",
+    }
+    assert all(a["title"] and a["teaser"] for a in articles)
+
+    etfs = client.get("/api/learn/what-are-etfs").json()
+    assert etfs["title"] == "What are ETFs?"
+    assert "exchange-traded fund" in etfs["content"]
+    assert client.get("/api/learn/nope").status_code == 404
+
+
+def test_movers_ranks_gainers_and_losers(monkeypatch):
+    fake = [
+        {"symbol": s, "price": 100.0, "change_pct": pct, "name": s}
+        for s, pct in [("AAA", 5.0), ("BBB", -3.0), ("CCC", 1.0),
+                       ("DDD", -7.0), ("EEE", 2.0), ("FFF", 0.5), ("GGG", -1.0)]
+    ]
+    import data
+    monkeypatch.setattr(data, "_movers_cache", None)
+    monkeypatch.setattr(data, "get_stock_quotes", lambda symbols: fake)
+    m = client.get("/api/stocks/movers").json()
+    assert [q["symbol"] for q in m["gainers"]] == ["AAA", "EEE", "CCC", "FFF", "GGG"]
+    assert [q["symbol"] for q in m["losers"]] == ["DDD", "BBB", "GGG", "FFF", "CCC"]
+
+
 def test_chat_returns_answer_and_sources():
     r = client.post("/api/chat", json={"message": "What is max drawdown?"})
     assert r.status_code == 200
