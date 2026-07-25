@@ -19,8 +19,8 @@ from auth import (
 )
 from backtest import run_backtest
 from data import (
-    RANGES, TICKERS, get_movers, get_stock_quotes, load_universe,
-    period_returns, stock_catalog,
+    RANGES, TICKERS, annualized_inflation, get_movers, get_stock_quotes,
+    load_universe, period_returns, risk_free_rate, stock_catalog,
 )
 from rag import answer as rag_answer
 
@@ -171,30 +171,74 @@ def growth(
     }
 
 
+BENCHMARK = "SPY"
+
+
+def _downsample(series: pd.Series) -> pd.Series:
+    """Weekly points keep charts snappy without visibly changing the shape."""
+    return series.resample("W-FRI").last().dropna() if len(series) > 1500 else series
+
+
+def _metrics(r) -> dict:
+    return {
+        "start": r.start.date().isoformat(),
+        "end": r.end.date().isoformat(),
+        "total_return": r.total_return,
+        "cagr": r.cagr,
+        "real_cagr": r.real_cagr,
+        "volatility": r.volatility,
+        "sharpe": r.sharpe,
+        "sortino": r.sortino,
+        "calmar": r.calmar,
+        "max_drawdown": r.max_drawdown,
+        "longest_drawdown_days": r.longest_drawdown_days,
+        "risk_free_rate": r.risk_free_rate,
+        "inflation_rate": r.inflation_rate,
+    }
+
+
 @app.post("/api/backtest")
 def backtest(req: BacktestRequest):
+    prices = _prices()
+    rf = risk_free_rate(prices, req.start, req.end)
+    inflation, inflation_estimated = annualized_inflation(req.start, req.end)
     try:
-        result = run_backtest(_prices(), req.allocation, start=req.start, end=req.end)
+        result = run_backtest(
+            prices, req.allocation, start=req.start, end=req.end,
+            risk_free_rate=rf, inflation_rate=inflation,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
 
-    # Downsample the curve for the wire: weekly points keep charts snappy
-    # without visibly changing the shape.
-    equity = result.equity_curve
-    if len(equity) > 1500:
-        equity = equity.resample("W-FRI").last().dropna()
+    equity = _downsample(result.equity_curve)
     drawdown = equity / equity.cummax() - 1
 
+    # Benchmark over the portfolio's actual (clipped) window, so it's comparable.
+    benchmark = None
+    if list(req.allocation) != [BENCHMARK]:
+        try:
+            # price_start (not start) so both equity curves begin the same day.
+            bench = run_backtest(
+                prices, {BENCHMARK: 1.0}, start=result.price_start, end=result.end,
+                risk_free_rate=rf, inflation_rate=inflation,
+            )
+            bench_equity = _downsample(bench.equity_curve)
+            benchmark = {
+                "ticker": BENCHMARK,
+                "name": TICKERS[BENCHMARK],
+                "metrics": _metrics(bench),
+                "equity_curve": {
+                    "dates": [d.date().isoformat() for d in bench_equity.index],
+                    "values": [round(float(v), 4) for v in bench_equity],
+                },
+            }
+        except ValueError:
+            benchmark = None  # window predates SPY; skip rather than fail
+
     return {
-        "metrics": {
-            "start": result.start.date().isoformat(),
-            "end": result.end.date().isoformat(),
-            "total_return": result.total_return,
-            "cagr": result.cagr,
-            "volatility": result.volatility,
-            "sharpe": result.sharpe,
-            "max_drawdown": result.max_drawdown,
-        },
+        "metrics": _metrics(result),
+        "benchmark": benchmark,
+        "inflation_estimated": inflation_estimated,
         "equity_curve": {
             "dates": [d.date().isoformat() for d in equity.index],
             "values": [round(float(v), 4) for v in equity],

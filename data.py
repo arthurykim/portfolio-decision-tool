@@ -3,6 +3,7 @@ import json
 import os
 import threading
 import time
+from functools import lru_cache
 from pathlib import Path
 import pandas as pd
 import yfinance as yf
@@ -98,6 +99,66 @@ def period_returns(prices: pd.DataFrame) -> list[dict]:
             "spark": [round(float(v), 2) for v in spark],
         })
     return out
+
+
+# ---------------------------------------------------------------- rates
+CPI_FILE = Path(__file__).parent / "data" / "cpi.json"
+RISK_FREE_TICKER = "BIL"  # 1-3 month T-bills stand in for the risk-free rate
+
+
+def _annualized(series: pd.Series) -> float:
+    years = (series.index[-1] - series.index[0]).days / 365.25
+    if years <= 0 or series.iloc[0] <= 0:
+        return 0.0
+    return float((series.iloc[-1] / series.iloc[0]) ** (1 / years) - 1)
+
+
+def risk_free_rate(prices: pd.DataFrame, start=None, end=None) -> float:
+    """Annualized T-bill return over the window, from BIL's own price history.
+
+    Returns 0.0 when the window predates BIL (2007) so callers degrade to the
+    old rf=0 behaviour rather than failing.
+    """
+    if RISK_FREE_TICKER not in prices.columns:
+        return 0.0
+    px = prices[RISK_FREE_TICKER].dropna()
+    if start is not None:
+        px = px[px.index >= pd.Timestamp(start)]
+    if end is not None:
+        px = px[px.index <= pd.Timestamp(end)]
+    return _annualized(px) if len(px) >= 2 else 0.0
+
+
+@lru_cache(maxsize=1)
+def _cpi() -> dict:
+    payload = json.loads(CPI_FILE.read_text())
+    payload["annual"] = {int(y): v for y, v in payload["annual"].items()}
+    return payload
+
+
+def _cpi_for_year(year: int) -> float:
+    """CPI index for a year, extrapolating past the last verified BLS value."""
+    cpi = _cpi()
+    annual, last = cpi["annual"], cpi["last_verified_year"]
+    if year in annual:
+        return annual[year]
+    if year > last:
+        return annual[last] * (1 + cpi["assumed_rate_after_last_verified"]) ** (year - last)
+    return annual[min(annual)]
+
+
+def annualized_inflation(start=None, end=None) -> tuple[float, bool]:
+    """(annualized CPI growth over the window, whether any of it was estimated)."""
+    cpi = _cpi()
+    today = pd.Timestamp.today()
+    start_ts = pd.Timestamp(start) if start is not None else pd.Timestamp("1990-01-01")
+    end_ts = pd.Timestamp(end) if end is not None else today
+    years = (end_ts - start_ts).days / 365.25
+    if years <= 0:
+        return 0.0, False
+    ratio = _cpi_for_year(end_ts.year) / _cpi_for_year(start_ts.year)
+    estimated = end_ts.year > cpi["last_verified_year"]
+    return float(ratio ** (1 / years) - 1), estimated
 
 
 # ---------------------------------------------------------------- stocks
