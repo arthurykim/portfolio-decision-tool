@@ -375,6 +375,9 @@ function route() {
   for (const a of document.querySelectorAll(".nav a[data-view]")) {
     a.classList.toggle("active", a.dataset.view === view);
   }
+  // The metrics glossary only belongs on views that actually show those numbers.
+  const glossary = $("glossary");
+  glossary.hidden = !glossary.dataset.views.split(" ").includes(view);
   if (view === "stocks") loadStocksView();
   if (view === "about") loadAbout();
   if (view === "learn") loadLearnView(arg);
@@ -683,30 +686,36 @@ async function loadLearnList() {
 }
 
 async function loadLearnView(slug) {
-  const list = await loadLearnList();
   const tiles = $("learn-tiles");
   const articleEl = $("learn-article");
+
+  // Set visibility before any await so racing calls can't reorder the view.
+  const showArticle = Boolean(slug);
+  tiles.hidden = showArticle;
+  $("learn-start").hidden = showArticle;
+  articleEl.hidden = !showArticle;
+  $("learn-back").hidden = !showArticle;
+
+  const list = await loadLearnList();
 
   if (slug && list.some((a) => a.slug === slug)) {
     const a = await api(`/api/learn/${slug}`);
     $("learn-title").textContent = a.title;
-    $("learn-back").hidden = false;
-    tiles.hidden = true;
-    $("learn-start").hidden = true;
-    articleEl.hidden = false;
-    articleEl.innerHTML = renderMarkdown(a.content.split("\n").slice(1).join("\n"));
+    articleEl.innerHTML =
+      `<img class="article-hero" src="${a.image}" alt="Diagram illustrating ${a.title}" />` +
+      renderMarkdown(a.content.split("\n").slice(1).join("\n"));
     window.scrollTo({ top: 0 });
     return;
   }
 
   $("learn-title").textContent = "Learn";
-  $("learn-back").hidden = true;
-  articleEl.hidden = true;
   tiles.hidden = false;
   $("learn-start").hidden = false;
+  articleEl.hidden = true;
   if (!tiles.childElementCount) {
     tiles.innerHTML = list.map((a) =>
       `<button type="button" class="learn-tile" data-slug="${a.slug}">` +
+      `<img class="tile-thumb" src="${a.image}" alt="" loading="lazy" />` +
       `<h3>${a.title}</h3><p>${a.teaser}</p><span class="read">Read →</span></button>`
     ).join("");
     for (const t of tiles.querySelectorAll(".learn-tile")) {
