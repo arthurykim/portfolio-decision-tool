@@ -996,6 +996,7 @@ async function init() {
   $("chat-form").addEventListener("submit", sendChat);
   window.addEventListener("hashchange", route);
   initAuth();
+  initStockDetail();
   $("learn-back").addEventListener("click", () => { location.hash = "learn"; });
   route();
   loadLearnList().catch(() => {});
