@@ -112,7 +112,8 @@ describe("Stock detail panel", () => {
     expect(screen.getByText(/\+108\.63 \(\+50\.99%\) 1Y/)).toBeInTheDocument();
     expect(screen.getByText("Apple headline")).toBeInTheDocument();
 
-    const stats = screen.getByText("Open").closest(".detail-stats")!;
+    // closest() is typed Element; within() needs HTMLElement.
+    const stats = screen.getByText("Open").closest(".detail-stats") as HTMLElement;
     expect(within(stats).getByText("$213.03")).toBeInTheDocument();
   });
 
