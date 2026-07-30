@@ -12,8 +12,10 @@ def test_healthz():
 
 def test_tickers():
     data = client.get("/api/tickers").json()
-    assert len(data) == 11
+    assert len(data) == 13
     assert {"ticker": "SPY", "name": "S&P 500 (US Large Cap)"} in data
+    assert {"ticker": "SPX", "name": "S&P 500 (Index)"} in data
+    assert {"ticker": "NDX", "name": "Nasdaq 100 (Index)"} in data
 
 
 def test_prices():
@@ -83,7 +85,7 @@ def test_market_dashboard():
     assert r.status_code == 200
     body = r.json()
     assert body["ranges"] == ["1D", "1W", "1M", "YTD", "1Y", "5Y", "ALL"]
-    assert len(body["funds"]) == 11
+    assert len(body["funds"]) == 13
     spy = next(f for f in body["funds"] if f["ticker"] == "SPY")
     assert spy["price"] > 0
     assert set(spy["returns"]) == set(body["ranges"])

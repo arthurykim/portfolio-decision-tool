@@ -149,7 +149,7 @@ Without a key the chat still answers from the knowledge base in extractive mode.
 ## Testing & evaluation
 
 ```bash
-task test            # 57 unit + API tests; hermetic (synthetic data if no cache)
+task test            # 83 unit + API tests; hermetic (synthetic data if no cache)
 task eval:retrieval  # retrieval quality — no API key needed
 task eval            # RAGAS generation quality (needs GOOGLE_API_KEY)
 ```
@@ -157,18 +157,21 @@ task eval            # RAGAS generation quality (needs GOOGLE_API_KEY)
 ### Retrieval quality
 
 The RAG pipeline splits into a **retrieval** half (BM25 over 9 knowledge files →
-61 section-level chunks) and a **generation** half (Gemini). Retrieval runs
+76 section-level chunks) and a **generation** half (Gemini). Retrieval runs
 entirely locally, so its quality is measurable offline at zero cost — scored
-against a 16-question golden set with the expected source file labelled:
+against a 62-question golden set with the expected source file labelled:
 
 | Metric | Result | Meaning |
 |---|---|---|
-| recall@1 | **87.5%** | correct file ranked first |
-| recall@3 | **100%** | correct file within the top 3 |
-| MRR | **0.938** | mean reciprocal rank of the correct file |
+| recall@1 | **66.1%** | correct file ranked first (41/62) |
+| recall@3 | **88.7%** | correct file within the top 3 (55/62) |
+| MRR | **0.763** | mean reciprocal rank of the correct file |
 
-Both misses rank the correct file **second**, and both are genuine ambiguities
-rather than failures: "why did 60/40 struggle in 2022?" retrieves the 60/40
+Of the 21 questions that don't rank first, 10 land at rank 2 and 4 at rank 3 —
+still inside the top-4 window the model receives. The remaining **7 retrieve
+nothing relevant at all**, and those are the real gap: they are paraphrases whose
+wording shares no tokens with the source text. Two representative near-misses:
+"why did 60/40 struggle in 2022?" retrieves the 60/40
 strategy page above the market-history page, and "what does TLT hold?" retrieves
 the strategies page that discusses TLT's role above its asset-class entry. Since
 the assistant is given the top 4 chunks, a rank-2 hit still lands in context.
@@ -189,7 +192,7 @@ it uses an LLM as judge, and writes to `eval/results.json`.
 
 > **Free-tier note:** Gemini's free tier caps requests *per day, per model*
 > (as low as 20/day on the newest Flash). Each question costs ~4 calls, so the
-> full 16-question run needs a paid tier or a roomier model. Score a subset
+> full 62-question run needs a paid tier or a roomier model. Score a subset
 > that fits your quota with `EVAL_LIMIT=4 task eval`, and pace requests with
 > `EVAL_RPM`.
 

@@ -27,6 +27,7 @@ from ragas.run_config import RunConfig  # noqa: E402
 from ragas.llms import LangchainLLMWrapper  # noqa: E402
 from ragas.metrics import context_precision, context_recall, faithfulness  # noqa: E402
 
+import history  # noqa: E402
 from rag import MODEL, answer, retrieve  # noqa: E402
 
 GOLDEN = Path(__file__).parent / "golden_qa.jsonl"
@@ -99,6 +100,14 @@ def main() -> None:
         {"summary": summary, "cases": json.loads(df.to_json(orient="records"))},
         indent=2,
     ))
+    if history.enabled():
+        prior = history.previous("ragas", {"model": MODEL})
+        deltas = history.compare(summary, prior)
+        history.record("ragas", summary,
+                       config={"model": MODEL, "rpm": RPM},
+                       corpus={"questions": len(df)})
+        if deltas:
+            print(history.format_deltas(deltas, prior))
     print("\n=== RAGAS summary ===")
     for metric, value in summary.items():
         print(f"  {metric:18} {value:.3f}")

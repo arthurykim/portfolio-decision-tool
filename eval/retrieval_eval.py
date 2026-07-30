@@ -7,6 +7,7 @@ the top 3 (recall@3), and how high it lands on average (MRR).
     python eval/retrieval_eval.py
 """
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -16,7 +17,8 @@ from env import load_env  # noqa: E402
 
 load_env()
 
-from rag import retrieve  # noqa: E402
+import history  # noqa: E402
+from rag import DEFAULT_CHUNKER, get_index, retrieve  # noqa: E402
 
 GOLDEN = Path(__file__).parent / "golden_qa.jsonl"
 RESULTS = Path(__file__).parent / "retrieval_results.json"
@@ -51,6 +53,22 @@ def main() -> None:
     }
     RESULTS.write_text(json.dumps({"summary": summary, "cases": rows}, indent=2) + "\n")
 
+    strategy = os.environ.get("CHUNK_STRATEGY") or DEFAULT_CHUNKER
+    index = get_index()
+    deltas = {}
+    if history.enabled():
+        # Compare against the last run of the same strategy, not just the last
+        # run of anything — otherwise a strategy sweep looks like a regression.
+        prior = history.previous("retrieval", {"strategy": strategy})
+        metrics = {k: v for k, v in summary.items() if k != "questions"}
+        deltas = history.compare(metrics, prior)
+        history.record(
+            "retrieval", metrics,
+            config={"strategy": strategy, "k": K},
+            corpus={"questions": n, "chunks": len(index.chunks),
+                    "avg_tokens": round(index.avgdl, 1)},
+        )
+
     print(f"Retrieval over {n} golden questions (BM25, no API calls)\n")
     print(f"  recall@1   {summary['recall_at_1']:.1%}  correct file ranked first")
     print(f"  recall@{K}   {summary[f'recall_at_{K}']:.1%}  correct file in top {K}")
@@ -64,7 +82,11 @@ def main() -> None:
             print(f"  · {m['question'][:58]}")
             print(f"      expected {m['expected_source']}, got {got} (rank {m['rank'] or 'miss'})")
 
+    if deltas:
+        print(history.format_deltas(deltas, history.load("retrieval", {"strategy": strategy})[-2]))
     print(f"\nPer-question detail written to {RESULTS.name}")
+    if history.enabled():
+        print(f"Run appended to {history.HISTORY.name} ({len(history.load('retrieval'))} total)")
 
 
 if __name__ == "__main__":
