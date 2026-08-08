@@ -43,6 +43,26 @@ tasks:
     cmds:
       - "{{.PY}} -m pytest tests/ -q"
 
+  web:
+    desc: Run the React frontend dev server (needs `task dev` for the API)
+    dir: frontend
+    cmds:
+      - npm install
+      - npm run dev
+
+  web:test:
+    desc: Run the React component tests
+    dir: frontend
+    cmds:
+      - npm test
+
+  web:build:
+    desc: Type-check and build the React frontend
+    dir: frontend
+    cmds:
+      - npm run typecheck
+      - npm run build
+
   check:
     desc: Full verification - compile, validate configs, run tests
     cmds:
