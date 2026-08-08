@@ -22,7 +22,7 @@ actually implements.
 ## 1. Chunking
 
 The knowledge base is 9 Markdown files (`knowledge/*.md`). Each is split on `##`
-headings into one chunk per section, producing **61 chunks averaging 37.8 tokens**.
+headings into one chunk per section, producing **76 chunks averaging 38.9 tokens**.
 
 ```python
 sections = re.split(r"\n(?=## )", raw)
@@ -53,7 +53,7 @@ score(D, Q) = Σ  IDF(qᵢ) ·        f(qᵢ, D) · (k₁ + 1)
                              f(qᵢ, D) + k₁ · (1 − b + b · |D|/avgdl)
 ```
 
-with `k₁ = 1.5`, `b = 0.75` (the standard defaults), `avgdl = 37.8`, `N = 61`.
+with `k₁ = 1.5`, `b = 0.75` (the standard defaults), `avgdl = 38.9`, `N = 76`.
 
 Three ideas do the work:
 
@@ -122,7 +122,7 @@ rank by cosine similarity. BM25 was chosen deliberately:
 | Offline evaluation | yes — the benchmark needs no key | needs the embedding provider |
 | Synonym matching | **no** — this is the real weakness | yes |
 
-At this corpus size the tradeoff strongly favours BM25. With 61 chunks of
+At this corpus size the tradeoff still favours BM25. With 76 chunks of
 domain-specific vocabulary, queries and documents share terminology: someone
 asking about "max drawdown" uses those words, because they are the words the
 concept has. Lexical matching is sufficient, and the measured recall (§5)
@@ -148,13 +148,33 @@ task eval:retrieval        # no API key, no cost, deterministic
 
 | Metric | Result | Meaning |
 |---|---|---|
-| recall@1 | **87.5%** | correct file ranked first (14/16) |
-| recall@3 | **100%** | correct file within the top 3 (16/16) |
-| MRR | **0.938** | mean of 1/rank of the correct file |
+| recall@1 | **66.1%** | correct file ranked first (41/62) |
+| recall@3 | **88.7%** | correct file within the top 3 (55/62) |
+| MRR | **0.763** | mean of 1/rank of the correct file |
 
-### The two misses, and why they aren't failures
+The golden set was deliberately made harder: it grew from 16 questions written in
+the knowledge base's own vocabulary to **62**, many of them natural-language
+paraphrases a real user would type — *"How much cash should I keep set aside for
+emergencies?"* rather than *"what is an emergency fund?"*. recall@1 fell from
+87.5% to 66.1% as a direct result.
 
-Both rank the correct file **second**, and both are genuine ambiguities:
+That drop is the honest number, not a regression. The earlier score measured
+queries that shared wording with the documents, which is exactly the case lexical
+matching handles best. The paraphrase questions expose the synonym limitation in
+§4: **7 of 62 questions now retrieve nothing relevant in the top 3 at all**, which
+means the assistant answers those from general knowledge rather than from the
+knowledge base.
+
+### Where the 21 misses fall
+
+| rank of the correct file | count | consequence |
+|---|---|---|
+| 2 | 10 | still in the top-4 window the model receives |
+| 3 | 4 | still in the window |
+| not in top 3 | **7** | the model gets no relevant passage |
+
+The rank-2 and rank-3 cases are mostly genuine ambiguity between two pages that
+both answer the question. Two examples:
 
 - *"Why did the 60/40 portfolio struggle in 2022?"* → returns `strategies.md`
   (the 60/40 section, which explicitly discusses its 2022 weakness) above
@@ -162,10 +182,15 @@ Both rank the correct file **second**, and both are genuine ambiguities:
 - *"What does TLT hold and how risky is it?"* → returns `strategies.md` above
   `asset-classes.md`, because the strategies page discusses TLT's role at length.
 
-Because generation receives the **top 4** chunks, a rank-2 hit is still in
-context and the answer is unaffected. This is why `recall@3` matters more than
-`recall@1` for this pipeline: the operational question is "did the right passage
+Because generation receives the **top 4** chunks, a rank-2 or rank-3 hit is still
+in context and the answer is largely unaffected. This is why `recall@3` matters
+more than `recall@1` here: the operational question is "did the right passage
 reach the model?", not "was it literally first?"
+
+The **7 total misses are the actionable failure**, and they share a shape — the
+question and the document use different words for the same idea. Fixing them
+needs either synonym-aware retrieval (a hybrid with embeddings) or knowledge-base
+text that anticipates how people actually phrase things.
 
 ### Why a labelled golden set rather than eyeballing
 
@@ -188,7 +213,7 @@ it was never given. That is why this half is measured first and independently.
 ## 7. Known limitations
 
 - **No synonym or paraphrase matching** (§4). The main structural weakness.
-- **Corpus is small** — 61 chunks. BM25's IDF term is noisier on a small `N`;
+- **Corpus is small** — 76 chunks. BM25's IDF term is noisier on a small `N`;
   these numbers should be re-measured if the knowledge base grows substantially.
 - **The golden set is author-written**, so it may under-represent phrasings a real
   user would try. Queries logged from actual usage would be a better test set.

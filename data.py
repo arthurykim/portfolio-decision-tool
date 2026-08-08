@@ -18,15 +18,27 @@ CACHE_MAX_AGE = int(os.environ.get("CACHE_MAX_AGE", 3600))
 TICKERS = {
     "SPY": "S&P 500 (US Large Cap)",
     "VOO": "S&P 500 (Vanguard)",
+    "SPX": "S&P 500 (Index)",
+    "QQQ": "Nasdaq 100",
+    "NDX": "Nasdaq 100 (Index)",
     "AGG": "US Aggregate Bonds",
     "TLT": "20+ Year Treasury",
     "GLD": "Gold",
     "VTI": "US Total Stock Market",
     "VXUS": "International Stocks",
-    "QQQ": "Nasdaq 100",
     "IEF": "7-10 Year Treasury",
     "VNQ": "US Real Estate",
     "BIL": "1-3 Month Treasury (Cash)",
+}
+
+# Some instruments trade on Yahoo under a symbol we don't want in URLs or cache
+# filenames — indices carry a "^" prefix that is awkward in path segments. Map
+# our clean key to the Yahoo download symbol; anything absent uses its own key.
+# Note: index levels are price-only (no dividend reinvestment), so their returns
+# run a little below the matching total-return ETF (SPY/VOO, QQQ).
+YF_SYMBOLS = {
+    "SPX": "^GSPC",
+    "NDX": "^NDX",
 }
 
 
@@ -34,20 +46,40 @@ def _cache_is_fresh(cache_file: Path) -> bool:
     return cache_file.exists() and (time.time() - cache_file.stat().st_mtime) < CACHE_MAX_AGE
 
 
+def _read_cache(cache_file: Path) -> pd.DataFrame | None:
+    """Read a cached parquet file, or None if it is missing or unreadable.
+
+    An interrupted write can leave a truncated/corrupt file behind. Treat that
+    as a cache miss (and delete it) so the caller re-fetches, rather than
+    letting the exception crash the request.
+    """
+    if not cache_file.exists():
+        return None
+    try:
+        return pd.read_parquet(cache_file)
+    except Exception:
+        cache_file.unlink(missing_ok=True)
+        return None
+
+
 def load_prices(ticker: str, refresh: bool = False) -> pd.DataFrame:
     """Return a DataFrame with daily Close prices for `ticker`. Cached locally."""
     cache_file = CACHE_DIR / f"{ticker}.parquet"
     if _cache_is_fresh(cache_file) and not refresh:
-        return pd.read_parquet(cache_file)
+        cached = _read_cache(cache_file)
+        if cached is not None:
+            return cached
 
     try:
-        df = yf.download(ticker, period="max", auto_adjust=True, progress=False)
+        symbol = YF_SYMBOLS.get(ticker, ticker)
+        df = yf.download(symbol, period="max", auto_adjust=True, progress=False)
     except Exception:
         df = pd.DataFrame()
     if df.empty:
         # Network/API failure: fall back to stale cache rather than dying.
-        if cache_file.exists():
-            return pd.read_parquet(cache_file)
+        cached = _read_cache(cache_file)
+        if cached is not None:
+            return cached
         raise ValueError(f"No data returned for {ticker}")
     # yfinance multi-index when one ticker — flatten
     if isinstance(df.columns, pd.MultiIndex):
@@ -55,7 +87,11 @@ def load_prices(ticker: str, refresh: bool = False) -> pd.DataFrame:
     # Drop rows with no close: the current session's bar can come back empty,
     # which would otherwise make "as of" report a date that has no price.
     df = df[["Close"]].rename(columns={"Close": ticker}).dropna()
-    df.to_parquet(cache_file)
+    # Write atomically: a crash/reload mid-write must not leave a partial file
+    # that later reads see as a fresh-but-corrupt cache.
+    tmp = cache_file.with_suffix(".parquet.tmp")
+    df.to_parquet(tmp)
+    tmp.replace(cache_file)
     return df
 
 

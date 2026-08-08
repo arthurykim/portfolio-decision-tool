@@ -34,24 +34,131 @@ class Chunk:
     tokens: list[str]
 
 
-def _load_chunks() -> list[Chunk]:
-    """Split each knowledge file into one chunk per '##' section."""
-    chunks = []
+def _make_chunk(source: str, heading: str, text: str) -> Chunk:
+    return Chunk(source=source, heading=heading, text=text, tokens=_tokenize(text))
+
+
+def _document_title(raw: str) -> str:
+    """The first level-1 (`# `) heading in a file, or '' if there isn't one."""
+    for line in raw.splitlines():
+        if line.startswith("# "):
+            return line.lstrip("# ").strip()
+    return ""
+
+
+# --------------------------------------------------------------------------
+# Chunking strategies
+#
+# Each strategy maps (source_filename, raw_markdown) -> list[Chunk]. This is the
+# main knob to experiment with: rerun `task eval:chunking` after editing one of
+# these (or adding a new entry to CHUNKERS) to see how retrieval quality moves.
+# `heading` is the production default; the others exist for comparison.
+# --------------------------------------------------------------------------
+def _chunk_by_heading(source: str, raw: str) -> list[Chunk]:
+    """One chunk per `##` section (the material before the first `##` — title
+    and intro — becomes its own chunk). This is the default."""
+    out = []
+    for sec in re.split(r"\n(?=## )", raw):
+        sec = sec.strip()
+        if not sec:
+            continue
+        heading = sec.splitlines()[0].lstrip("# ").strip()
+        out.append(_make_chunk(source, heading, sec))
+    return out
+
+
+def _chunk_by_heading_with_title(source: str, raw: str) -> list[Chunk]:
+    """Like `heading`, but prepend the document title to every section so the
+    file's topic words are present in each chunk (helps when a query names the
+    topic but not the section)."""
+    title = _document_title(raw)
+    out = []
+    for sec in re.split(r"\n(?=## )", raw):
+        sec = sec.strip()
+        if not sec:
+            continue
+        heading = sec.splitlines()[0].lstrip("# ").strip()
+        text = f"{title}\n\n{sec}" if title and title != heading else sec
+        out.append(_make_chunk(source, heading, text))
+    return out
+
+
+def _chunk_by_paragraph(source: str, raw: str, min_chars: int = 350) -> list[Chunk]:
+    """Merge paragraphs into chunks of at least `min_chars`, tracking the most
+    recent heading. Finer-grained than whole sections."""
+    out: list[Chunk] = []
+    heading = _document_title(raw)
+    buf: list[str] = []
+
+    def flush() -> None:
+        nonlocal buf
+        text = "\n\n".join(buf).strip()
+        if text:
+            out.append(_make_chunk(source, heading, text))
+        buf = []
+
+    for block in re.split(r"\n{2,}", raw):
+        block = block.strip()
+        if not block:
+            continue
+        if block.startswith("#"):
+            flush()
+            heading = block.lstrip("# ").strip()
+            continue
+        buf.append(block)
+        if sum(len(b) for b in buf) >= min_chars:
+            flush()
+    flush()
+    return out
+
+
+def _chunk_fixed(source: str, raw: str, size: int = 120, overlap: int = 30) -> list[Chunk]:
+    """Fixed-size sliding window over the whole document (word count, with
+    overlap). Ignores section structure entirely — the classic naive baseline."""
+    title = _document_title(raw) or source
+    words = re.sub(r"^#+\s*", "", raw, flags=re.M).split()
+    out = []
+    step = max(size - overlap, 1)
+    for i in range(0, max(len(words), 1), step):
+        window = words[i:i + size]
+        if not window:
+            break
+        out.append(_make_chunk(source, title, " ".join(window)))
+        if i + size >= len(words):
+            break
+    return out
+
+
+CHUNKERS = {
+    "heading": _chunk_by_heading,
+    "heading_title": _chunk_by_heading_with_title,
+    "paragraph": _chunk_by_paragraph,
+    "fixed": _chunk_fixed,
+}
+DEFAULT_CHUNKER = "heading"
+
+
+def load_chunks(strategy: str | None = None) -> list[Chunk]:
+    """Chunk every knowledge file with the given strategy.
+
+    Strategy resolution: explicit argument > CHUNK_STRATEGY env var > default.
+    """
+    name = strategy or os.environ.get("CHUNK_STRATEGY") or DEFAULT_CHUNKER
+    try:
+        chunker = CHUNKERS[name]
+    except KeyError:
+        raise ValueError(
+            f"unknown chunk strategy {name!r}; choose from {sorted(CHUNKERS)}"
+        )
+    chunks: list[Chunk] = []
     for path in sorted(KNOWLEDGE_DIR.glob("*.md")):
-        raw = path.read_text()
-        sections = re.split(r"\n(?=## )", raw)
-        for sec in sections:
-            sec = sec.strip()
-            if not sec:
-                continue
-            first_line = sec.splitlines()[0].lstrip("# ").strip()
-            chunks.append(Chunk(
-                source=path.name,
-                heading=first_line,
-                text=sec,
-                tokens=_tokenize(sec),
-            ))
+        chunks.extend(chunker(path.name, path.read_text()))
     return chunks
+
+
+def _load_chunks() -> list[Chunk]:
+    """Backwards-compatible alias for the default chunking."""
+    return load_chunks()
 
 
 class BM25Index:
@@ -88,9 +195,11 @@ class BM25Index:
         return scored[:k]
 
 
-@lru_cache(maxsize=1)
-def get_index() -> BM25Index:
-    return BM25Index(_load_chunks())
+@lru_cache(maxsize=None)
+def get_index(strategy: str | None = None) -> BM25Index:
+    """The BM25 index the app queries. Cached per strategy so experiments (and
+    the live app via CHUNK_STRATEGY) each build their index once."""
+    return BM25Index(load_chunks(strategy))
 
 
 def retrieve(query: str, k: int = 4) -> list[dict]:
