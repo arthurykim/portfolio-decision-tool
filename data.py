@@ -354,7 +354,11 @@ def stock_news(symbol: str, limit: int = 8) -> list[dict]:
         provider = c.get("provider")
         canonical = c.get("canonicalUrl") or c.get("clickThroughUrl") or {}
         url = canonical.get("url") if isinstance(canonical, dict) else c.get("link")
-        if not url or not c.get("title"):
+        # Third-party feed rendered into an href downstream: anything but
+        # http(s) here (javascript:, data:) would be script injection.
+        if not url or not str(url).startswith(("https://", "http://")):
+            continue
+        if not c.get("title"):
             continue
         items.append({
             "title": str(c["title"])[:200],
