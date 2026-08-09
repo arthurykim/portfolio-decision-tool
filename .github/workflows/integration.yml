@@ -1,0 +1,92 @@
+name: integration
+
+# Kept out of ci.yml on purpose. This job installs torch and downloads an
+# embedding model, so it runs in minutes rather than seconds — too slow to sit
+# on every pull request. It runs when retrieval code actually changes, nightly,
+# and on demand.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "rag.py"
+      - "vectorstore.py"
+      - "embeddings.py"
+      - "scripts/build_vectors.py"
+      - "knowledge/**"
+      - "tests/integration/**"
+      - "docker-compose.yml"
+      - "requirements.txt"
+      - ".github/workflows/integration.yml"
+  pull_request:
+    # Duplicated rather than shared: GitHub's workflow parser does not
+    # support YAML anchors. Keep this list in sync with the push filter.
+    paths:
+      - "rag.py"
+      - "vectorstore.py"
+      - "embeddings.py"
+      - "scripts/build_vectors.py"
+      - "knowledge/**"
+      - "tests/integration/**"
+      - "docker-compose.yml"
+      - "requirements.txt"
+      - ".github/workflows/integration.yml"
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+jobs:
+  milvus:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      # The model is ~90 MB and never changes for a given EMBED_MODEL, so
+      # caching it saves a download on every run.
+      - name: Cache embedding model
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-${{ runner.os }}-all-MiniLM-L6-v2
+
+      # Uses the same compose file developers run locally, so CI and `task
+      # vectors:up` cannot drift apart.
+      - name: Start Milvus
+        run: docker compose --profile vectors up -d etcd minio milvus
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt -r requirements-dev.txt
+
+      # Cold start is well over a minute; poll the health endpoint rather than
+      # guessing with a fixed sleep.
+      - name: Wait for Milvus to be ready
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:9091/healthz > /dev/null; then
+              echo "Milvus ready after ${i}0s"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "Milvus did not become healthy in 10 minutes"
+          exit 1
+
+      # -m integration alongside the path keeps a miswired marker from silently
+      # turning this into a no-op run.
+      - name: Run integration tests
+        run: pytest tests/integration -v -m integration
+        env:
+          MILVUS_URI: http://localhost:19530
+
+      - name: Milvus logs (on failure)
+        if: failure()
+        run: docker compose --profile vectors logs --tail 200
+
+      - name: Tear down
+        if: always()
+        run: docker compose --profile vectors down -v

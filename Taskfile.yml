@@ -43,6 +43,11 @@ tasks:
     cmds:
       - "{{.PY}} -m pytest tests/ -q"
 
+  test:integration:
+    desc: 'Run integration tests against live services (needs vectors:up)'
+    cmds:
+      - '{{.PY}} -m pytest tests/integration -q -m integration'
+
   web:
     desc: Run the React frontend dev server (needs `task dev` for the API)
     dir: frontend
