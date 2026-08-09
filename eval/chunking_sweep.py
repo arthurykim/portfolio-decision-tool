@@ -19,6 +19,7 @@ from env import load_env  # noqa: E402
 load_env()
 
 import history  # noqa: E402
+
 from rag import CHUNKERS, BM25Index, load_chunks  # noqa: E402
 
 GOLDEN = Path(__file__).parent / "golden_qa.jsonl"
