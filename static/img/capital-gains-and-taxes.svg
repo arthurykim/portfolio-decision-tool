@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 230" role="img"
+     aria-label="Tax owed on a twenty thousand dollar gain sold at 364 days versus 366 days">
+  <style>
+    text{font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+    .ink{fill:#0b0b0b}.sub{fill:#52514e}.muted{fill:#898781}
+    .panel{fill:none;stroke:#e1e0d9}.track{fill:#f0efec}
+    .bad{fill:#d2452f}.bad-t{fill:#b03725}.good{fill:#1baf7a}.good-t{fill:#127954}
+    .dash{stroke:#e1e0d9}
+    @media (prefers-color-scheme:dark){
+      .ink{fill:#fff}.sub{fill:#c3c2b7}.panel{stroke:#2c2c2a}.track{fill:#2c2c2a}
+      .dash{stroke:#2c2c2a}.bad{fill:#c94430}.bad-t{fill:#ec7a66}
+      .good{fill:#199e70}.good-t{fill:#4dbf97}}
+  </style>
+  <text class="muted" x="20" y="22" font-size="12">Same $20,000 gain, same investment — two days apart</text>
+
+  <rect class="panel" x="16" y="36" width="330" height="176" rx="14" stroke-width="1.5"/>
+  <text class="ink" x="40" y="66" font-size="16" font-weight="800">Held 364 days</text>
+  <text class="muted" x="40" y="86" font-size="12">Short-term — taxed as ordinary income</text>
+  <text class="sub" x="40" y="118" font-size="12" font-weight="600">Tax at 32%</text>
+  <rect class="track" x="40" y="128" width="266" height="18" rx="9"/>
+  <rect class="bad" x="40" y="128" width="266" height="18" rx="9"/>
+  <text class="bad-t" x="40" y="172" font-size="24" font-weight="800">$6,400</text>
+  <text class="muted" x="40" y="192" font-size="11">You keep $13,600</text>
+
+  <line class="dash" x1="360" y1="60" x2="360" y2="190" stroke-width="1.5" stroke-dasharray="4 5"/>
+
+  <rect class="panel" x="374" y="36" width="330" height="176" rx="14" stroke-width="1.5"/>
+  <text class="ink" x="398" y="66" font-size="16" font-weight="800">Held 366 days</text>
+  <text class="muted" x="398" y="86" font-size="12">Long-term — preferential rate</text>
+  <text class="sub" x="398" y="118" font-size="12" font-weight="600">Tax at 15%</text>
+  <rect class="track" x="398" y="128" width="266" height="18" rx="9"/>
+  <rect class="good" x="398" y="128" width="125" height="18" rx="9"/>
+  <text class="good-t" x="398" y="172" font-size="24" font-weight="800">$3,000</text>
+  <text class="muted" x="398" y="192" font-size="11">You keep $17,000 — $3,400 more for waiting</text>
+</svg>

@@ -122,13 +122,29 @@ def test_growth_accepts_large_amounts():
 
 def test_learn_index_and_articles():
     articles = client.get("/api/learn").json()
-    assert len(articles) == 6
-    assert {a["slug"] for a in articles} == {
+    # Compared against the registry rather than a hard-coded count, so adding an
+    # article does not fail this test — but forgetting to register one does.
+    from main import LEARN_ARTICLES
+
+    assert {a["slug"] for a in articles} == set(LEARN_ARTICLES)
+    assert {a["slug"] for a in articles} >= {
         "what-are-etfs", "what-are-index-funds",
         "retirement-accounts", "taxable-vs-tax-advantaged",
         "hysa-vs-checking", "money-basics",
+        "what-is-trading", "how-leverage-works",
+        "capital-gains-and-taxes", "odds-and-expected-value",
     }
     assert all(a["title"] and a["teaser"] for a in articles)
+
+
+def test_every_learn_article_has_a_hero_image():
+    # The Learn tiles render article["image"] unconditionally, so a missing file
+    # is a broken image on the live page rather than a caught error.
+    from pathlib import Path
+
+    for article in client.get("/api/learn").json():
+        path = Path(__file__).resolve().parents[1] / "static" / article["image"].lstrip("/")
+        assert path.exists(), f"missing hero image for {article['slug']}: {path}"
 
     etfs = client.get("/api/learn/what-are-etfs").json()
     assert etfs["title"] == "What are ETFs?"

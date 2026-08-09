@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 230" role="img"
+     aria-label="How much an asset must fall to wipe out an account at 1x, 2x, 3x and 5x leverage">
+  <style>
+    text{font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+    .ink{fill:#0b0b0b}.sub{fill:#52514e}.muted{fill:#898781}
+    .panel{fill:none;stroke:#e1e0d9}.track{fill:#f0efec}
+    .safe{fill:#898781}.warn{fill:#e0a02c}.bad{fill:#d2452f}.bad-t{fill:#b03725}
+    @media (prefers-color-scheme:dark){
+      .ink{fill:#fff}.sub{fill:#c3c2b7}.muted{fill:#898781}
+      .panel{stroke:#2c2c2a}.track{fill:#2c2c2a}
+      .bad{fill:#c94430}.bad-t{fill:#ec7a66}.warn{fill:#d19a30}}
+  </style>
+  <text class="muted" x="20" y="22" font-size="12">How far the asset has to fall before your equity is gone</text>
+
+  <rect class="panel" x="16" y="36" width="688" height="176" rx="14" stroke-width="1.5"/>
+
+  <!-- 1x -->
+  <text class="ink" x="40" y="72" font-size="13" font-weight="800">1x</text>
+  <text class="muted" x="40" y="88" font-size="10">no borrowing</text>
+  <rect class="track" x="96" y="58" width="480" height="18" rx="9"/>
+  <rect class="safe" x="96" y="58" width="480" height="18" rx="9"/>
+  <text class="sub" x="590" y="72" font-size="13" font-weight="700">−100%</text>
+
+  <!-- 2x -->
+  <text class="ink" x="40" y="108" font-size="13" font-weight="800">2x</text>
+  <rect class="track" x="96" y="94" width="480" height="18" rx="9"/>
+  <rect class="warn" x="96" y="94" width="240" height="18" rx="9"/>
+  <text class="sub" x="590" y="108" font-size="13" font-weight="700">−50%</text>
+
+  <!-- 3x -->
+  <text class="ink" x="40" y="144" font-size="13" font-weight="800">3x</text>
+  <rect class="track" x="96" y="130" width="480" height="18" rx="9"/>
+  <rect class="bad" x="96" y="130" width="160" height="18" rx="9"/>
+  <text class="bad-t" x="590" y="144" font-size="13" font-weight="700">−33%</text>
+
+  <!-- 5x -->
+  <text class="ink" x="40" y="180" font-size="13" font-weight="800">5x</text>
+  <rect class="track" x="96" y="166" width="480" height="18" rx="9"/>
+  <rect class="bad" x="96" y="166" width="96" height="18" rx="9"/>
+  <text class="bad-t" x="590" y="180" font-size="13" font-weight="700">−20%</text>
+
+  <text class="muted" x="96" y="202" font-size="11">A 20% drop is ordinary. At 5x it takes everything — the asset never has to reach zero.</text>
+</svg>

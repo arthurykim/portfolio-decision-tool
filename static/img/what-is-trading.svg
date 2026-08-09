@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 230" role="img"
+     aria-label="Investing grows with company earnings while short-term trading transfers money between participants minus costs">
+  <style>
+    text{font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+    .ink{fill:#0b0b0b}.sub{fill:#52514e}.muted{fill:#898781}
+    .panel{fill:none;stroke:#e1e0d9}
+    .good{stroke:#1baf7a}.good-t{fill:#127954}
+    .neut{stroke:#898781}.bad-t{fill:#b03725}
+    .dash{stroke:#e1e0d9}
+    @media (prefers-color-scheme:dark){
+      .ink{fill:#fff}.sub{fill:#c3c2b7}.panel{stroke:#2c2c2a}.dash{stroke:#2c2c2a}
+      .good{stroke:#199e70}.good-t{fill:#4dbf97}.bad-t{fill:#ec7a66}}
+  </style>
+  <text class="muted" x="20" y="22" font-size="12">Two different sources of return</text>
+
+  <rect class="panel" x="16" y="36" width="330" height="176" rx="14" stroke-width="1.5"/>
+  <text class="ink" x="40" y="64" font-size="16" font-weight="800">Investing</text>
+  <text class="muted" x="40" y="82" font-size="11">Return comes from earnings and growth</text>
+  <polyline class="good" points="40,178 92,166 144,158 196,138 248,122 306,100"
+            fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <text class="good-t" x="40" y="200" font-size="11" font-weight="700">Positive-sum — everyone holding can gain</text>
+
+  <line class="dash" x1="360" y1="60" x2="360" y2="190" stroke-width="1.5" stroke-dasharray="4 5"/>
+
+  <rect class="panel" x="374" y="36" width="330" height="176" rx="14" stroke-width="1.5"/>
+  <text class="ink" x="398" y="64" font-size="16" font-weight="800">Short-term trading</text>
+  <text class="muted" x="398" y="82" font-size="11">Return comes from the other side of the trade</text>
+  <polyline class="neut" points="398,140 428,116 458,158 488,124 518,164 548,132 578,152 608,120 638,150 664,138"
+            fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <text class="bad-t" x="398" y="200" font-size="11" font-weight="700">Zero-sum before costs — negative-sum after them</text>
+</svg>

@@ -19,17 +19,37 @@ from pydantic import BaseModel, Field, field_validator
 
 import db
 from auth import (
-    USERNAME_RE, clear_session_cookie, current_user, hash_password,
-    require_admin, require_user, set_session_cookie, verify_password,
+    USERNAME_RE,
+    clear_session_cookie,
+    current_user,
+    hash_password,
+    require_admin,
+    require_user,
+    set_session_cookie,
+    verify_password,
 )
 from backtest import run_backtest
 from data import (
-    RANGES, TICKERS, annualized_inflation, get_movers, get_stock_quotes,
-    STOCK_RANGES, index_history, load_universe, members_on, period_returns,
-    risk_free_rate, stock_catalog, stock_history, stock_news, survivorship_gap,
+    RANGES,
+    STOCK_RANGES,
+    TICKERS,
+    annualized_inflation,
+    get_movers,
+    get_stock_quotes,
+    index_history,
+    load_universe,
+    members_on,
+    period_returns,
+    risk_free_rate,
+    stock_catalog,
+    stock_history,
+    stock_news,
+    survivorship_gap,
 )
 from observability import metrics, new_request_id, request_id_var, setup_logging
-from rag import _llm_available as llm_available, answer as rag_answer, get_index
+from rag import _llm_available as llm_available
+from rag import answer as rag_answer
+from rag import get_index
 
 setup_logging()
 logger = logging.getLogger("app")
@@ -265,7 +285,7 @@ def backtest(req: BacktestRequest):
             risk_free_rate=rf, inflation_rate=inflation,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc))
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     equity = _downsample(result.equity_curve)
     drawdown = equity / equity.cummax() - 1
@@ -314,7 +334,7 @@ def chat(req: ChatRequest):
     except Exception as exc:
         metrics.inc("chat_errors_total")
         logger.warning("Chat failed: %s", exc)
-        raise HTTPException(status_code=500, detail="Chat unavailable")
+        raise HTTPException(status_code=500, detail="Chat unavailable") from exc
     # The key signal: a fallback to extractive means generation is degraded.
     metrics.inc("chat_answers_total", {"mode": result["mode"]})
     if result["mode"] != "gemini" and llm_available():
@@ -371,7 +391,7 @@ def stock_quotes(symbols: str = Query(..., max_length=400)):
         quotes = get_stock_quotes(known)
     except Exception as exc:
         logger.warning("Stock quotes failed: %s", exc)
-        raise HTTPException(status_code=503, detail="Quote source unavailable")
+        raise HTTPException(status_code=503, detail="Quote source unavailable") from exc
     for q in quotes:
         q["name"] = catalog[q["symbol"]]["name"]
     return quotes
@@ -396,7 +416,7 @@ def stock_detail(symbol: str, range: str = Query("1Y"), refresh: bool = False):
         payload = stock_history(symbol, range, refresh=refresh)
     except ValueError as exc:
         metrics.inc("stock_history_errors_total", {"symbol": symbol})
-        raise HTTPException(status_code=503, detail=str(exc))
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     payload["name"] = catalog.get(symbol, {}).get("name") or TICKERS.get(symbol, symbol)
     payload["sector"] = catalog.get(symbol, {}).get("sector", "")
     payload["ranges"] = list(STOCK_RANGES)
@@ -427,7 +447,7 @@ def stock_movers():
         return get_movers()
     except Exception as exc:
         logger.warning("Movers failed: %s", exc)
-        raise HTTPException(status_code=503, detail="Quote source unavailable")
+        raise HTTPException(status_code=503, detail="Quote source unavailable") from exc
 
 
 @app.get("/api/index-history")
@@ -488,6 +508,10 @@ LEARN_ARTICLES = {
     "taxable-vs-tax-advantaged": "taxable-vs-tax-advantaged.md",
     "hysa-vs-checking": "hysa-vs-checking.md",
     "money-basics": "money-basics.md",
+    "what-is-trading": "what-is-trading.md",
+    "how-leverage-works": "how-leverage-works.md",
+    "capital-gains-and-taxes": "capital-gains-and-taxes.md",
+    "odds-and-expected-value": "odds-and-expected-value.md",
 }
 
 

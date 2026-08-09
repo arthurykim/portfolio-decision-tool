@@ -1,25 +1,36 @@
-"""RAG layer: BM25 retrieval over the knowledge base + optional Gemini generation.
+"""RAG layer: retrieval over the knowledge base + optional Gemini generation.
 
-Retrieval is pure Python, so the app works with no API key at all (extractive
-mode returns the best-matching passage). When GOOGLE_API_KEY is set, Gemini
-writes the answer grounded in the retrieved passages.
+Three independent knobs, all swappable from the environment:
+
+  CHUNK_STRATEGY  how documents are split      (see CHUNKERS)
+  RETRIEVAL_MODE  how chunks are ranked        (see MODES)
+  DEDUP           near-duplicate chunk removal (see dedupe_chunks)
+
+BM25 retrieval is pure Python, so the app works with no API key and no model
+download at all (extractive mode returns the best-matching passage). Dense and
+hybrid retrieval additionally need `sentence-transformers` and a running Milvus;
+if either is missing, retrieval degrades to BM25 rather than failing. When
+GOOGLE_API_KEY is set, Gemini writes the answer grounded in the retrieved
+passages.
 """
 import logging
 import math
 import os
 import re
 from dataclasses import dataclass
-from functools import lru_cache
+from functools import cache, lru_cache
 from pathlib import Path
 
 logger = logging.getLogger("uvicorn.error")
 
 KNOWLEDGE_DIR = Path(__file__).parent / "knowledge"
 
-_STOPWORDS = frozenset(
-    "a an and are as at be but by for from has have if in is it its of on or that the "
-    "this to was were what when which who will with your you how why does do".split()
-)
+_STOPWORDS = frozenset([
+    "a", "an", "and", "are", "as", "at", "be", "but", "by", "for", "from", "has", "have",
+    "if", "in", "is", "it", "its", "of", "on", "or", "that", "the", "this", "to", "was",
+    "were", "what", "when", "which", "who", "will", "with", "your", "you", "how", "why",
+    "does", "do",
+])
 
 
 def _tokenize(text: str) -> list[str]:
@@ -129,30 +140,195 @@ def _chunk_fixed(source: str, raw: str, size: int = 120, overlap: int = 30) -> l
     return out
 
 
+# --- LangChain splitters ---------------------------------------------------
+# These use the same interface as the hand-written strategies above, so the
+# sweep in eval/chunking_sweep.py scores them side by side with the others.
+# langchain-text-splitters is imported lazily: the default strategy is pure
+# Python, and the app should still start if the extra dependency is missing.
+MD_HEADERS = [("#", "h1"), ("##", "h2"), ("###", "h3")]
+
+
+def _lc_markdown_docs(raw: str):
+    from langchain_text_splitters import MarkdownHeaderTextSplitter
+
+    # strip_headers=False keeps the heading line inside the chunk body, matching
+    # the hand-written strategies — a query matching a heading must score on it.
+    splitter = MarkdownHeaderTextSplitter(MD_HEADERS, strip_headers=False)
+    return splitter.split_text(raw)
+
+
+def _lc_heading(doc, fallback: str) -> str:
+    """Deepest heading LangChain recorded for a document, or `fallback`."""
+    meta = doc.metadata
+    for key in ("h3", "h2", "h1"):
+        if meta.get(key):
+            return meta[key]
+    return fallback
+
+
+def _chunk_langchain_markdown(source: str, raw: str) -> list[Chunk]:
+    """LangChain `MarkdownHeaderTextSplitter`, splitting on `#`/`##`/`###`.
+
+    Close to the `heading` strategy but header-aware one level deeper, and it
+    carries the heading hierarchy as metadata rather than reparsing it."""
+    title = _document_title(raw) or source
+    out = []
+    for doc in _lc_markdown_docs(raw):
+        text = doc.page_content.strip()
+        if text:
+            out.append(_make_chunk(source, _lc_heading(doc, title), text))
+    return out
+
+
+def _chunk_langchain_recursive(
+    source: str, raw: str, size: int = 400, overlap: int = 80,
+) -> list[Chunk]:
+    """Header split, then LangChain's `RecursiveCharacterTextSplitter` to cap
+    long sections.
+
+    The recursive splitter backs off through paragraph → line → sentence → word
+    boundaries, so oversized sections break at the most natural point available
+    instead of mid-sentence the way `fixed` does. Sections already under `size`
+    pass through untouched, so this only differs from `md_header` where a
+    section is genuinely too long for one chunk.
+
+    `size` is 400 chars deliberately: the longest section in this knowledge base
+    is 687 chars, so a 700-char cap would make this strategy identical to
+    `md_header` on every file and the sweep would be comparing nothing."""
+    from langchain_text_splitters import RecursiveCharacterTextSplitter
+
+    title = _document_title(raw) or source
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=size,
+        chunk_overlap=overlap,
+        separators=["\n\n", "\n", ". ", " ", ""],
+    )
+    out = []
+    for doc in _lc_markdown_docs(raw):
+        heading = _lc_heading(doc, title)
+        for piece in splitter.split_text(doc.page_content):
+            piece = piece.strip()
+            if piece:
+                out.append(_make_chunk(source, heading, piece))
+    return out
+
+
 CHUNKERS = {
     "heading": _chunk_by_heading,
     "heading_title": _chunk_by_heading_with_title,
     "paragraph": _chunk_by_paragraph,
     "fixed": _chunk_fixed,
+    "md_header": _chunk_langchain_markdown,
+    "md_recursive": _chunk_langchain_recursive,
 }
 DEFAULT_CHUNKER = "heading"
 
 
-def load_chunks(strategy: str | None = None) -> list[Chunk]:
+# --------------------------------------------------------------------------
+# Deduplication
+#
+# Chunking can emit the same material more than once: overlapping windows in
+# `fixed`/`md_recursive` repeat text by construction, and the knowledge base
+# itself restates definitions across files. Duplicates are actively harmful —
+# they inflate `df` (depressing IDF for the very terms that should discriminate)
+# and they waste slots in the top-k window handed to the model, so two of four
+# passages can say the same thing.
+# --------------------------------------------------------------------------
+DEFAULT_DEDUP_THRESHOLD = 0.9
+
+
+def _normalized(text: str) -> str:
+    return " ".join(text.lower().split())
+
+
+def dedupe_chunks(chunks: list[Chunk], threshold: float = DEFAULT_DEDUP_THRESHOLD) -> list[Chunk]:
+    """Drop exact and near-duplicate chunks, keeping the longest of each group.
+
+    Near-duplicates are found by Jaccard overlap of token sets. The longest
+    chunk in a group is kept because it is the one most likely to contain the
+    full statement rather than a truncated window of it.
+
+    `threshold` is deliberately strict (0.9): two sections about the same fund
+    legitimately share most of their vocabulary, and dropping a distinct chunk
+    costs recall permanently, while keeping a near-duplicate only wastes a slot.
+    Set `threshold` to 1.0 for exact-match-only.
+    """
+    if not chunks:
+        return []
+
+    # Exact duplicates first — cheap, and it shrinks the O(n^2) pass below.
+    by_text: dict[str, Chunk] = {}
+    for chunk in chunks:
+        key = _normalized(chunk.text)
+        if key not in by_text or len(chunk.text) > len(by_text[key].text):
+            by_text[key] = chunk
+    unique = list(by_text.values())
+
+    if threshold >= 1.0:
+        return _in_original_order(chunks, unique)
+
+    # Longest first, so a survivor is always the longest of its group.
+    unique.sort(key=lambda c: len(c.tokens), reverse=True)
+    kept: list[Chunk] = []
+    kept_sets: list[set[str]] = []
+    for chunk in unique:
+        tokens = set(chunk.tokens)
+        if not tokens:
+            continue
+        duplicate = False
+        for other in kept_sets:
+            # Jaccard cannot reach `threshold` unless the smaller set is at
+            # least `threshold` of the larger, so skip on size alone first.
+            smaller, larger = sorted((len(tokens), len(other)))
+            if smaller < threshold * larger:
+                continue
+            overlap = len(tokens & other)
+            if overlap / len(tokens | other) >= threshold:
+                duplicate = True
+                break
+        if not duplicate:
+            kept.append(chunk)
+            kept_sets.append(tokens)
+    return _in_original_order(chunks, kept)
+
+
+def _in_original_order(original: list[Chunk], kept: list[Chunk]) -> list[Chunk]:
+    """Restore corpus order, so results stay stable and readable across runs."""
+    survivors = {id(c) for c in kept}
+    return [c for c in original if id(c) in survivors]
+
+
+def _dedup_threshold() -> float | None:
+    """None disables dedup entirely (DEDUP=0)."""
+    raw = os.environ.get("DEDUP")
+    if raw is not None and raw.strip().lower() in ("0", "false", "off", "no"):
+        return None
+    return float(os.environ.get("DEDUP_THRESHOLD") or DEFAULT_DEDUP_THRESHOLD)
+
+
+def load_chunks(
+    strategy: str | None = None, dedup: float | None | bool = True,
+) -> list[Chunk]:
     """Chunk every knowledge file with the given strategy.
 
     Strategy resolution: explicit argument > CHUNK_STRATEGY env var > default.
+    `dedup` takes a threshold, True to resolve it from the environment, or
+    False/None to keep every chunk.
     """
     name = strategy or os.environ.get("CHUNK_STRATEGY") or DEFAULT_CHUNKER
     try:
         chunker = CHUNKERS[name]
-    except KeyError:
+    except KeyError as exc:
         raise ValueError(
             f"unknown chunk strategy {name!r}; choose from {sorted(CHUNKERS)}"
-        )
+        ) from exc
     chunks: list[Chunk] = []
     for path in sorted(KNOWLEDGE_DIR.glob("*.md")):
         chunks.extend(chunker(path.name, path.read_text()))
+
+    threshold = _dedup_threshold() if dedup is True else (dedup or None)
+    if threshold is not None:
+        chunks = dedupe_chunks(chunks, threshold)
     return chunks
 
 
@@ -195,17 +371,129 @@ class BM25Index:
         return scored[:k]
 
 
-@lru_cache(maxsize=None)
+@cache
 def get_index(strategy: str | None = None) -> BM25Index:
     """The BM25 index the app queries. Cached per strategy so experiments (and
     the live app via CHUNK_STRATEGY) each build their index once."""
     return BM25Index(load_chunks(strategy))
 
 
-def retrieve(query: str, k: int = 4) -> list[dict]:
+# --------------------------------------------------------------------------
+# Hybrid retrieval
+#
+# BM25 matches words; embeddings match meaning. Their failure modes are close to
+# complementary — BM25 misses "how much did I lose at the worst point?" against a
+# chunk that only says "drawdown", while dense retrieval blurs the exact tokens
+# ("60/40", "7-10 year") that BM25 nails. Running both and fusing the rankings
+# keeps each one's wins.
+# --------------------------------------------------------------------------
+MODES = ("bm25", "dense", "hybrid")
+DEFAULT_MODE = "bm25"
+
+# Reciprocal-rank-fusion constant. 60 is the value from the original RRF paper;
+# it damps the gap between rank 1 and rank 2 so a single confident-but-wrong
+# retriever cannot dominate the fused list.
+RRF_K = 60
+
+
+def _mode(mode: str | None = None) -> str:
+    name = mode or os.environ.get("RETRIEVAL_MODE") or DEFAULT_MODE
+    if name not in MODES:
+        raise ValueError(f"unknown retrieval mode {name!r}; choose from {list(MODES)}")
+    return name
+
+
+@cache
+def _uid_index(strategy: str | None = None) -> dict:
+    """chunk_uid -> Chunk, for mapping Milvus hits back to local chunks."""
+    import vectorstore
+
+    # Call get_index() exactly the way search() does. `get_index()` and
+    # `get_index(None)` are *different* lru_cache keys, so passing the argument
+    # through here would build a second, parallel index whose Chunk objects are
+    # equal to but distinct from the ones BM25 returns.
+    chunks = (get_index() if strategy is None else get_index(strategy)).chunks
+    return {vectorstore.chunk_uid(c.source, c.text): c for c in chunks}
+
+
+def _fusion_key(chunk: Chunk) -> tuple[str, str]:
+    """Identity for fusion: same source and same text is the same chunk.
+
+    Deliberately content-based rather than `id()`. Object identity would silently
+    fail to fuse whenever the two retrievers' chunks came from different index
+    instances — the lists would merge into a longer list of singletons instead of
+    reinforcing each other, which is exactly the bug RRF is supposed to fix.
+    """
+    return (chunk.source, chunk.text)
+
+
+def _rrf(rankings: list[list[Chunk]]) -> list[tuple[Chunk, float]]:
+    """Fuse ranked lists by reciprocal rank. A chunk appearing in several lists
+    accumulates a contribution from each."""
+    scores: dict[tuple[str, str], float] = {}
+    chunks: dict[tuple[str, str], Chunk] = {}
+    for ranking in rankings:
+        for rank, chunk in enumerate(ranking, start=1):
+            key = _fusion_key(chunk)
+            chunks.setdefault(key, chunk)
+            scores[key] = scores.get(key, 0.0) + 1 / (RRF_K + rank)
+    fused = [(chunks[k], s) for k, s in scores.items()]
+    fused.sort(key=lambda x: x[1], reverse=True)
+    return fused
+
+
+def _dense_search(query: str, k: int) -> list[tuple[Chunk, float]]:
+    """Dense hits mapped back to local chunks, best first, with cosine scores.
+
+    Empty when Milvus is unreachable or the collection was never built. Hits
+    whose uid is unknown locally are dropped: they belong to a collection built
+    from a different chunking strategy, so the stored text no longer exists.
+    """
+    import vectorstore
+
+    uids = _uid_index()
+    return [
+        (uids[uid], score)
+        for uid, score in vectorstore.search(query, k=k)
+        if uid in uids
+    ]
+
+
+def search(query: str, k: int = 4, mode: str | None = None) -> list[tuple[Chunk, float]]:
+    """Retrieve the top-k chunks under the configured mode.
+
+    Falls back to BM25 whenever the dense half returns nothing — an unbuilt
+    collection or a stopped Milvus degrades retrieval quality but never breaks
+    the app.
+    """
+    name = _mode(mode)
+    bm25 = get_index()
+    if name == "bm25":
+        return bm25.search(query, k=k)
+
+    # Fuse over a wider candidate pool than we return: a chunk that is rank 8 in
+    # one list and rank 2 in the other should still be able to surface.
+    pool = max(k * 5, 20) if name == "hybrid" else k
+    dense = _dense_search(query, pool)
+    if not dense:
+        logger.warning("dense retrieval unavailable; falling back to BM25")
+        return bm25.search(query, k=k)
+    if name == "dense":
+        return dense[:k]
+
+    lexical = [c for c, _ in bm25.search(query, k=pool)]
+    return _rrf([lexical, [c for c, _ in dense]])[:k]
+
+
+def retrieve(query: str, k: int = 4, mode: str | None = None) -> list[dict]:
+    """Top-k passages as plain dicts.
+
+    `score` is comparable only within a single call: it is a BM25 score, a
+    cosine similarity, or an RRF score depending on the mode.
+    """
     return [
         {"source": c.source, "heading": c.heading, "text": c.text, "score": round(s, 3)}
-        for c, s in get_index().search(query, k=k)
+        for c, s in search(query, k=k, mode=mode)
     ]
 
 
