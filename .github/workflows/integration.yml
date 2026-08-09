@@ -1,35 +1,21 @@
 name: integration
 
-# Kept out of ci.yml on purpose. This job installs torch and downloads an
-# embedding model, so it runs in minutes rather than seconds — too slow to sit
-# on every pull request. It runs when retrieval code actually changes, nightly,
-# and on demand.
+# Kept out of ci.yml on purpose: this job installs torch, downloads an embedding
+# model, and boots Milvus, so it takes minutes where ci.yml takes seconds.
+# Keeping it in its own workflow means a slow infrastructure failure reports
+# separately from a real unit-test failure.
+#
+# It runs on EVERY pull request, deliberately. It used to be path-filtered to
+# the retrieval files, but the filter cannot see indirect breakage — a change to
+# data.py, env.py, or a requirements bump can break the retrieval path without
+# touching any file on the list, and that would reach main unchecked. ~3 minutes
+# per PR is worth the certainty. If PR volume ever makes that cost real, prefer
+# making it a required check that can be skipped by label over reinstating a
+# path filter that silently under-tests.
 on:
   push:
     branches: [main]
-    paths:
-      - "rag.py"
-      - "vectorstore.py"
-      - "embeddings.py"
-      - "scripts/build_vectors.py"
-      - "knowledge/**"
-      - "tests/integration/**"
-      - "docker-compose.yml"
-      - "requirements.txt"
-      - ".github/workflows/integration.yml"
   pull_request:
-    # Duplicated rather than shared: GitHub's workflow parser does not
-    # support YAML anchors. Keep this list in sync with the push filter.
-    paths:
-      - "rag.py"
-      - "vectorstore.py"
-      - "embeddings.py"
-      - "scripts/build_vectors.py"
-      - "knowledge/**"
-      - "tests/integration/**"
-      - "docker-compose.yml"
-      - "requirements.txt"
-      - ".github/workflows/integration.yml"
   schedule:
     - cron: "0 6 * * *"
   workflow_dispatch:
