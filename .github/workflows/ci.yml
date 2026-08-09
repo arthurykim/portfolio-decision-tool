@@ -51,3 +51,31 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: docker build -t portfolio-decision-tool .
+
+      # Building only proves the Dockerfile parses. It does not prove the image
+      # runs: a module missing from the COPY list builds clean and then dies on
+      # `import main`. That exact bug shipped undetected. Boot it and hit a real
+      # endpoint.
+      - name: Start the container
+        run: docker run -d --name pdt -p 8000:8000 portfolio-decision-tool
+
+      - name: Wait for /healthz
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:8000/healthz > /dev/null; then
+              echo "healthy after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "container never became healthy"
+          docker logs pdt
+          exit 1
+
+      - name: Container logs (on failure)
+        if: failure()
+        run: docker logs pdt
+
+      - name: Stop the container
+        if: always()
+        run: docker rm -f pdt

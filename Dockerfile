@@ -9,7 +9,11 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 
-COPY data.py backtest.py rag.py db.py auth.py main.py ./
+# Every root module, not a hand-maintained list. The list version silently
+# omitted env.py and observability.py — both imported at the top of main.py —
+# so the image built fine and then died on `import main` at container start.
+# .dockerignore already excludes tests/, eval/, and scripts/.
+COPY *.py ./
 COPY knowledge/ knowledge/
 COPY static/ static/
 
