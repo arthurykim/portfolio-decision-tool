@@ -93,15 +93,18 @@ retrieved source passages cited beneath it:
 │  ├── /api/index-history  point-in-time S&P 500 membership            │
 │  ├── /healthz /readyz    liveness + per-dependency readiness         │
 │  ├── /metrics            Prometheus counters & latency histograms    │
-│  └── /                   static frontend (vanilla JS, SVG charts)    │
+│  ├── /                   landing page (static/landing.html)          │
+│  └── /markets /stocks /backtest /learn /assistant /about             │
+│                          app shell (vanilla JS, SVG charts)          │
 │                                                                      │
 │  data.py — yfinance download → parquet cache (hourly TTL)            │
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
 No build step, no frontend framework, no external services: prices cache to
-parquet, users and watchlists live in a single SQLite file, the UI is one
-static page, and the whole thing ships as one Docker image.
+parquet, users and watchlists live in a single SQLite file, the UI is two static
+pages (a landing page and the app shell), and the whole thing ships as one
+Docker image.
 
 ## Quickstart
 
