@@ -39,5 +39,5 @@ def test_short_history_clamps_to_start():
 
 
 def test_ticker_metadata_complete():
-    assert len(TICKERS) == 11
+    assert len(TICKERS) == 13
     assert all(isinstance(name, str) and name for name in TICKERS.values())

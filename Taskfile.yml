@@ -114,6 +114,11 @@ tasks:
     cmds:
       - task --list
 
+  eval:history:
+    desc: Show recorded evaluation runs as a trend (no API key needed)
+    cmds:
+      - "{{.PY}} eval/history_report.py {{.CLI_ARGS}}"
+
   eval:retrieval:
     desc: Score BM25 retrieval against the golden set (no API key needed)
     cmds:

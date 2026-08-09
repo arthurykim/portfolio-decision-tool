@@ -13,3 +13,5 @@ TODO.csv
 eval/retrieval_results.json
 frontend/node_modules/
 frontend/dist/
+eval/history.jsonl
+eval/chunking_results.json
