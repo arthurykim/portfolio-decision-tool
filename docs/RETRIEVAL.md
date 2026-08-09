@@ -21,8 +21,11 @@ actually implements.
 
 ## 1. Chunking
 
-The knowledge base is 9 Markdown files (`knowledge/*.md`). Each is split on `##`
-headings into one chunk per section, producing **61 chunks averaging 37.8 tokens**.
+The knowledge base is 11 Markdown files (`knowledge/*.md`). Each is split on `##`
+headings into one chunk per section, producing **75 chunks averaging 42.9 tokens**.
+Sections with a heading but no body are skipped: a bare `# Title` line carries no
+information, and BM25's length normalization would score it highly precisely
+because it is short.
 
 ```python
 sections = re.split(r"\n(?=## )", raw)
@@ -53,7 +56,7 @@ score(D, Q) = Σ  IDF(qᵢ) ·        f(qᵢ, D) · (k₁ + 1)
                              f(qᵢ, D) + k₁ · (1 − b + b · |D|/avgdl)
 ```
 
-with `k₁ = 1.5`, `b = 0.75` (the standard defaults), `avgdl = 37.8`, `N = 61`.
+with `k₁ = 1.5`, `b = 0.75` (the standard defaults), `avgdl = 42.9`, `N = 75`.
 
 Three ideas do the work:
 
@@ -122,7 +125,7 @@ rank by cosine similarity. BM25 was chosen deliberately:
 | Offline evaluation | yes — the benchmark needs no key | needs the embedding provider |
 | Synonym matching | **no** — this is the real weakness | yes |
 
-At this corpus size the tradeoff strongly favours BM25. With 61 chunks of
+At this corpus size the tradeoff strongly favours BM25. With 75 chunks of
 domain-specific vocabulary, queries and documents share terminology: someone
 asking about "max drawdown" uses those words, because they are the words the
 concept has. Lexical matching is sufficient, and the measured recall (§5)
@@ -148,19 +151,34 @@ task eval:retrieval        # no API key, no cost, deterministic
 
 | Metric | Result | Meaning |
 |---|---|---|
-| recall@1 | **87.5%** | correct file ranked first (14/16) |
+| recall@1 | **75.0%** | correct file ranked first (12/16) |
 | recall@3 | **100%** | correct file within the top 3 (16/16) |
-| MRR | **0.938** | mean of 1/rank of the correct file |
+| MRR | **0.875** | mean of 1/rank of the correct file |
 
-### The two misses, and why they aren't failures
+### The four misses, and why they aren't failures
 
-Both rank the correct file **second**, and both are genuine ambiguities:
+All four rank the correct file **second**, and all four are genuine ambiguities:
 
 - *"Why did the 60/40 portfolio struggle in 2022?"* → returns `strategies.md`
   (the 60/40 section, which explicitly discusses its 2022 weakness) above
   `market-history.md` (the 2022 section). Both legitimately answer the question.
 - *"What does TLT hold and how risky is it?"* → returns `strategies.md` above
   `asset-classes.md`, because the strategies page discusses TLT's role at length.
+- *"Are index funds better than actively managed funds?"* → returns
+  `what-are-etfs.md` above `what-are-index-funds.md`. The ETF page makes the
+  active-vs-passive cost argument directly, so it is a defensible top hit; the
+  label reflects file organisation more than answer quality.
+- *"Why do backtest start dates matter so much?"* → returns `money-basics.md`
+  (7.23) above `market-history.md` (7.22). A **0.01 margin** — the two are tied
+  to within rounding, and which one wins is not a meaningful signal.
+
+That last miss is worth dwelling on. With 16 questions, one flipped answer moves
+`recall@1` by 6.25 points, and this one flipped on a 0.14% score difference caused
+by an unrelated change to `avgdl` elsewhere in the corpus. **These numbers are
+noise-dominated at this corpus size.** They are honest as a regression tripwire —
+a large move means something broke — but they cannot support a claim that one
+retrieval strategy beats another. Growing the golden set to 75–100 questions is a
+prerequisite for any such comparison, including BM25 versus embeddings.
 
 Because generation receives the **top 4** chunks, a rank-2 hit is still in
 context and the answer is unaffected. This is why `recall@3` matters more than
@@ -188,7 +206,7 @@ it was never given. That is why this half is measured first and independently.
 ## 7. Known limitations
 
 - **No synonym or paraphrase matching** (§4). The main structural weakness.
-- **Corpus is small** — 61 chunks. BM25's IDF term is noisier on a small `N`;
+- **Corpus is small** — 75 chunks. BM25's IDF term is noisier on a small `N`;
   these numbers should be re-measured if the knowledge base grows substantially.
 - **The golden set is author-written**, so it may under-represent phrasings a real
   user would try. Queries logged from actual usage would be a better test set.

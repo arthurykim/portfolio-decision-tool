@@ -35,19 +35,26 @@ class Chunk:
 
 
 def _load_chunks() -> list[Chunk]:
-    """Split each knowledge file into one chunk per '##' section."""
+    """Split each knowledge file into one chunk per '##' section.
+
+    Sections with a heading but no body are skipped. A bare '# Title' line above
+    the first '##' carries no information, yet BM25's length normalization scores
+    very short documents highly — so "performance metrics" used to retrieve the
+    two-token title of metrics.md ahead of any section that answers the question.
+    Files whose H1 is followed by real prose keep that prose as a chunk.
+    """
     chunks = []
     for path in sorted(KNOWLEDGE_DIR.glob("*.md")):
-        raw = path.read_text()
-        sections = re.split(r"\n(?=## )", raw)
-        for sec in sections:
+        for sec in re.split(r"\n(?=## )", path.read_text()):
             sec = sec.strip()
             if not sec:
                 continue
-            first_line = sec.splitlines()[0].lstrip("# ").strip()
+            lines = sec.splitlines()
+            if not "\n".join(lines[1:]).strip():
+                continue
             chunks.append(Chunk(
                 source=path.name,
-                heading=first_line,
+                heading=lines[0].lstrip("# ").strip(),
                 text=sec,
                 tokens=_tokenize(sec),
             ))

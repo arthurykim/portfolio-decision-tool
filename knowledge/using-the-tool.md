@@ -16,8 +16,10 @@ quotes shown in the quote strip are delayed about 15 minutes and are for display
 ## Methodology and assumptions
 
 The backtest assumes continuous (daily) rebalancing to target weights, no trading
-costs, no taxes, no slippage, and a risk-free rate of 0 for the Sharpe ratio. Dividends
-are reflected through adjusted prices. The backtest window is automatically clipped to
+costs, no taxes, and no slippage. The risk-free rate used for Sharpe and Sortino is
+not assumed to be zero: it is the actual annualized T-bill return over the same
+window, derived from BIL's price history, falling back to 0% only for windows that
+predate BIL's 2007 inception. Dividends are reflected through adjusted prices. The backtest window is automatically clipped to
 the period where all selected tickers have overlapping data — for example VXUS data
 begins in 2011, so any allocation including VXUS cannot be backtested before then.
 
