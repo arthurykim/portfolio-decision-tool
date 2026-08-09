@@ -14,6 +14,7 @@ load_env()  # populate os.environ from .env before other modules read it
 import pandas as pd
 from fastapi import Depends, FastAPI, HTTPException, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
 
@@ -583,7 +584,36 @@ async def cache_headers(request, call_next):
     return response
 
 
-# Static frontend last so /api/* wins routing.
+# ---------------------------------------------------------------------------
+# Frontend routes
+#
+# Two surfaces, deliberately separate: landing.html is the front door for people
+# who have never seen the tool, index.html is the app itself. Real paths (not
+# hash fragments) so each view is a distinct, linkable, crawlable URL.
+# ---------------------------------------------------------------------------
 STATIC_DIR = Path(__file__).parent / "static"
+
+# Views owned by the app shell. Kept in sync with VIEWS in static/app.js.
+APP_VIEWS = ("markets", "stocks", "backtest", "learn", "assistant", "about")
+
+
+def _page(name: str) -> FileResponse:
+    return FileResponse(STATIC_DIR / name, headers={"Cache-Control": "no-cache"})
+
+
 if STATIC_DIR.exists():
-    app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
+    @app.get("/", include_in_schema=False)
+    def landing():
+        return _page("landing.html")
+
+    @app.get("/app", include_in_schema=False)
+    def app_root():
+        return RedirectResponse("/markets", status_code=307)
+
+    # One route per view, plus /learn/<slug> for individual articles.
+    for _view in APP_VIEWS:
+        app.get(f"/{_view}", include_in_schema=False)(lambda: _page("index.html"))
+        app.get(f"/{_view}/{{slug}}", include_in_schema=False)(lambda slug: _page("index.html"))
+
+    # Assets last so the named routes above win.
+    app.mount("/", StaticFiles(directory=STATIC_DIR), name="static")

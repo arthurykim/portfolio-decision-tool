@@ -425,10 +425,19 @@ async function runBacktest() {
 }
 
 // ---------------------------------------------------------------- router
+// Real paths, not hash fragments, so every view is its own linkable URL.
+// Kept in sync with APP_VIEWS in main.py.
 const VIEWS = ["markets", "stocks", "backtest", "learn", "assistant", "about"];
 
+/** Navigate to an in-app path, e.g. navigate("learn", "what-are-etfs"). */
+function navigate(view, arg) {
+  const path = arg ? `/${view}/${arg}` : `/${view}`;
+  if (path !== location.pathname) history.pushState({}, "", path);
+  route();
+}
+
 function route() {
-  const [name, arg] = location.hash.slice(1).split("/");
+  const [, name, arg] = location.pathname.split("/");
   const view = VIEWS.includes(name) ? name : "markets";
   for (const el of document.querySelectorAll(".view")) el.hidden = el.dataset.view !== view;
   for (const a of document.querySelectorAll(".nav a[data-view]")) {
@@ -830,7 +839,7 @@ async function loadMovers() {
     for (const el of document.querySelectorAll(".mover-row[data-symbol]")) {
       el.style.cursor = "pointer";
       el.addEventListener("click", () => {
-        location.hash = "stocks";
+        navigate("stocks");
         openStock(el.dataset.symbol);
       });
     }
@@ -849,8 +858,8 @@ async function loadLearnList() {
   learnList = await api("/api/learn");
   const menu = $("learn-menu");
   menu.innerHTML = learnList.map((a) =>
-    `<a href="#learn/${a.slug}">${a.title}</a>`).join("") +
-    `<a href="#learn">All topics</a>`;
+    `<a href="/learn/${a.slug}">${a.title}</a>`).join("") +
+    `<a href="/learn">All topics</a>`;
   return learnList;
 }
 
@@ -888,7 +897,7 @@ async function loadLearnView(slug) {
       `<h3>${a.title}</h3><p>${a.teaser}</p><span class="read">Read →</span></button>`
     ).join("");
     for (const t of tiles.querySelectorAll(".learn-tile")) {
-      t.addEventListener("click", () => { location.hash = `learn/${t.dataset.slug}`; });
+      t.addEventListener("click", () => navigate("learn", t.dataset.slug));
     }
   }
 }
@@ -994,10 +1003,22 @@ async function init() {
   $("normalize").addEventListener("click", normalize);
   $("run").addEventListener("click", runBacktest);
   $("chat-form").addEventListener("submit", sendChat);
-  window.addEventListener("hashchange", route);
+  window.addEventListener("popstate", route);
+
+  // Intercept same-origin in-app links so they route client-side; anything
+  // else (external, new tab, modified click) behaves like a normal link.
+  document.addEventListener("click", (e) => {
+    const a = e.target.closest("a[href^='/']");
+    if (!a || a.target === "_blank" || e.metaKey || e.ctrlKey ||
+        e.shiftKey || e.altKey || e.button !== 0) return;
+    const [, name, arg] = new URL(a.href).pathname.split("/");
+    if (!VIEWS.includes(name)) return;          // e.g. "/" — let it load the landing page
+    e.preventDefault();
+    navigate(name, arg);
+  });
+
   initAuth();
-  initStockDetail();
-  $("learn-back").addEventListener("click", () => { location.hash = "learn"; });
+  $("learn-back").addEventListener("click", () => navigate("learn"));
   route();
   loadLearnList().catch(() => {});
   loadMovers();
