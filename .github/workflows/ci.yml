@@ -6,6 +6,18 @@ on:
   pull_request:
 
 jobs:
+  # Lint runs on its own so a style failure reports separately from a real
+  # test failure. Runtime deps aren't needed — ruff parses, it doesn't import.
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install ruff
+      - run: ruff check --output-format=github .
+
   test:
     runs-on: ubuntu-latest
     steps:

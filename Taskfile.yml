@@ -48,6 +48,16 @@ tasks:
     cmds:
       - '{{.PY}} -m pytest tests/integration -q -m integration'
 
+  lint:
+    desc: Lint the Python source (config in ruff.toml)
+    cmds:
+      - "{{.PY}} -m ruff check ."
+
+  lint:fix:
+    desc: Apply the lint fixes ruff can make automatically
+    cmds:
+      - "{{.PY}} -m ruff check --fix ."
+
   web:
     desc: Run the React frontend dev server (needs `task dev` for the API)
     dir: frontend
@@ -69,10 +79,14 @@ tasks:
       - npm run build
 
   check:
-    desc: Full verification - compile, validate configs, run tests
+    desc: Full verification - lint, compile, validate configs, run tests
     cmds:
-      - "{{.PY}} -m py_compile main.py data.py backtest.py rag.py db.py auth.py embeddings.py vectorstore.py scripts/refresh_market.py scripts/build_vectors.py eval/ragas_eval.py"
-      - "{{.PY}} -c \"import yaml; [yaml.safe_load(open(f)) for f in ['.github/workflows/ci.yml', '.github/workflows/market-refresh.yml', 'docker-compose.yml']]\""
+      # `ruff check .` parses every Python file in the repo, so it subsumes the
+      # py_compile syntax check this used to run against a hardcoded file list —
+      # a list that had already drifted (it was missing embeddings.py and
+      # vectorstore.py). One less thing to remember to update.
+      - task: lint
+      - "{{.PY}} -c \"import yaml; [yaml.safe_load(open(f)) for f in ['.github/workflows/ci.yml', '.github/workflows/integration.yml', '.github/workflows/market-refresh.yml', 'docker-compose.yml']]\""
       - "{{.PY}} -m pytest tests/ -q"
 
   admin:

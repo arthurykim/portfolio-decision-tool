@@ -5,6 +5,7 @@ import threading
 import time
 from functools import lru_cache
 from pathlib import Path
+
 import pandas as pd
 import yfinance as yf
 
@@ -271,7 +272,10 @@ def get_stock_quotes(symbols: list[str]) -> list[dict]:
             df = yf.download(chunk, period="5d", auto_adjust=True, progress=False)
         except Exception:
             continue
-        closes = df["Close"] if isinstance(df.columns, pd.MultiIndex) else df[["Close"]].rename(columns={"Close": chunk[0]})
+        if isinstance(df.columns, pd.MultiIndex):
+            closes = df["Close"]
+        else:
+            closes = df[["Close"]].rename(columns={"Close": chunk[0]})
         closes = closes.dropna(how="all")
         if len(closes) < 2:
             continue

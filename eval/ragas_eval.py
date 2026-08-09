@@ -21,13 +21,13 @@ from env import load_env  # noqa: E402
 
 load_env()
 
+import history  # noqa: E402
 from langchain_google_genai import ChatGoogleGenerativeAI  # noqa: E402
 from ragas import EvaluationDataset, evaluate  # noqa: E402
-from ragas.run_config import RunConfig  # noqa: E402
 from ragas.llms import LangchainLLMWrapper  # noqa: E402
 from ragas.metrics import context_precision, context_recall, faithfulness  # noqa: E402
+from ragas.run_config import RunConfig  # noqa: E402
 
-import history  # noqa: E402
 from rag import MODEL, answer, retrieve  # noqa: E402
 
 GOLDEN = Path(__file__).parent / "golden_qa.jsonl"
@@ -52,7 +52,7 @@ def _throttle(last_call: float) -> float:
 
 def build_dataset() -> EvaluationDataset:
     rows = []
-    cases = [json.loads(l) for l in GOLDEN.read_text().splitlines() if l.strip()]
+    cases = [json.loads(line) for line in GOLDEN.read_text().splitlines() if line.strip()]
     if LIMIT:
         cases = cases[:LIMIT]
         print(f"  (EVAL_LIMIT={LIMIT}: scoring the first {LIMIT} questions)")

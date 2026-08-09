@@ -99,7 +99,7 @@ def main() -> None:
         ),
         "current": current,
         "changes": changes,
-        "snapshots": {k: v for k, v in snapshots.items()},
+        "snapshots": dict(snapshots),
         "departed": departed,
     }, indent=1) + "\n")
 

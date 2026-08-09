@@ -124,7 +124,7 @@ class Metrics:
             for (name, labels) in sorted(self.hist_count):
                 lines += [f"# TYPE {name} histogram"]
                 cumulative = self.hist_buckets[(name, labels)]
-                for edge, count in zip(BUCKETS, cumulative):
+                for edge, count in zip(BUCKETS, cumulative, strict=True):
                     lines.append(
                         f"{_render(name, labels, extra=('le', str(edge)))} {count}"
                     )
