@@ -149,7 +149,11 @@ Without a key the chat still answers from the knowledge base in extractive mode.
 ## Testing & evaluation
 
 ```bash
-task test            # 122 unit + API tests; hermetic (synthetic data if no cache)
+task lint            # ruff over the whole repo
+task test            # 128 unit + API tests; hermetic (synthetic data if no cache)
+task test:integration  # 9 Milvus integration tests (needs `task vectors:up`)
+task web:test        # React component tests
+task check           # lint + config validation + tests, all in one
 task eval:retrieval  # retrieval quality — no API key needed
 task eval:chunking   # compare all 6 chunking strategies — no API key needed
 task eval:modes      # compare bm25 / dense / hybrid (needs Milvus)
@@ -251,20 +255,64 @@ task deploy:aws       # ECR push + App Runner create/redeploy
 
 | Path | What it is |
 |---|---|
+Most folders have their own README with the detail; this table is the index.
+
+**Application code** (all at the repo root today — see the note below the table)
+
+| Path | What it is |
+|---|---|
 | `main.py` | FastAPI app: API routes + static serving |
 | `data.py` | Price download, parquet cache, period returns |
 | `backtest.py` | Backtest engine and metrics |
 | `rag.py` | Chunking, dedup, BM25/dense/hybrid retrieval + optional Gemini generation |
 | `embeddings.py` | Local sentence-transformer embeddings (no API key) |
 | `vectorstore.py` | Milvus dense index, degrades to BM25 when unavailable |
-| `knowledge/` | Finance knowledge base + Learn articles (15 markdown files) |
-| `static/` | Frontend (HTML/CSS/JS, no framework) |
 | `db.py` / `auth.py` | SQLite persistence + stdlib session auth |
 | `observability.py` | JSON logging, request IDs, metrics (stdlib only) |
-| `tests/` | 122 pytest tests, hermetic via synthetic fixtures |
-| `eval/` | 78-question golden set + retrieval, chunking, and mode benchmarks |
-| `scripts/refresh_market.py` | Hourly snapshot generator (CI cron) |
-| `scripts/build_vectors.py` | Chunk, embed, and load the knowledge base into Milvus |
-| `scripts/build_index_history.py` | Point-in-time S&P 500 membership reconstruction |
+| `env.py` | Loads `.env` into `os.environ` before any module reads it |
+
+**Content, frontends, and supporting code**
+
+| Path | What it is |
+|---|---|
+| `knowledge/` | Finance knowledge base + Learn articles (15 markdown files) — [README](knowledge/README.md) |
+| `static/` | The **deployed** frontend (HTML/CSS/JS, no framework), served by `main.py` |
+| `frontend/` | React + TypeScript + Vite client, deploys separately to Vercel — [README](frontend/README.md) |
+| `tests/` | 128 hermetic tests + 9 Milvus integration tests — [README](tests/README.md) |
+| `eval/` | 78-question golden set + retrieval, chunking, and mode benchmarks — [README](eval/README.md) |
+| `scripts/` | Maintenance jobs: market refresh, vector build, index history — [README](scripts/README.md) |
 | `deploy/` | App Runner script + deployment docs |
 | `docs/RETRIEVAL.md` | How the RAG retrieval pipeline works |
+
+**Configuration**
+
+| Path | What it is |
+|---|---|
+| `Taskfile.yml` | Every developer command (`task --list` to see them all) |
+| `ruff.toml` | Lint rules; `task lint` locally, enforced by the `lint` CI job |
+| `pytest.ini` | Registers the `integration` marker and deselects it by default |
+| `.github/workflows/ci.yml` | Lint, tests, frontend, and a container boot check — every PR |
+| `.github/workflows/integration.yml` | Milvus integration suite — every PR, plus nightly |
+| `.github/workflows/market-refresh.yml` | Hourly market snapshot commit (cron) |
+| `Dockerfile` / `docker-compose.yml` | Single-container build; Milvus behind the `vectors` profile |
+
+### Two frontends — read this before you start
+
+The repo contains two separate frontends, and it matters which one you touch:
+
+- **`static/`** is the one that is **actually deployed**. The Dockerfile copies it
+  (`COPY static/ static/`) and FastAPI serves it, so it is what users get today.
+- **`frontend/`** is a React rewrite that deploys separately to Vercel. It has the
+  component tests and is where the project is heading.
+
+They currently overlap in what they render. Until that is resolved, treat
+`static/` as production and `frontend/` as the direction of travel — and when you
+change user-facing behaviour, be explicit about which surface you meant.
+
+### A note on the flat root
+
+The ten application modules above sit at the repo root rather than in a package.
+That is a known rough edge, not a convention worth copying — it is why the
+Dockerfile shipped a hand-maintained file list that silently went stale. A
+reorganization into a package is proposed separately; until it lands, new modules
+go at the root next to their neighbours so the layout stays internally consistent.
