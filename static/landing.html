@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Portfolio Decision Tool — see what your money would have done</title>
+  <meta name="description" content="Backtest index-fund allocations against decades of real market data. Inflation-adjusted returns, Sharpe against actual T-bill rates, and plain-English explanations. Educational tool, not investment advice." />
+  <link rel="stylesheet" href="/tokens.css?v=2" />
+  <link rel="stylesheet" href="/landing.css?v=5" />
+</head>
+<body>
+  <header class="lp-topbar">
+    <div class="lp-topbar-inner">
+      <a class="lp-brand" href="/">Portfolio Decision Tool</a>
+      <nav class="lp-nav">
+        <a href="/markets">Markets</a>
+        <a href="/backtest">Backtest</a>
+        <a href="/learn">Learn</a>
+        <span class="lp-auth" id="lp-auth"></span>
+        <a class="lp-btn lp-btn-primary" href="/markets">Open the app</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <!-- ============== Hero: the live calculator ============== -->
+    <div class="lp-hero-wrap">
+    <section class="lp-hero">
+      <div class="lp-hero-copy">
+        <h1>See what your money<br />would have done.</h1>
+        <p class="lp-sub">
+          Pick a fund, an amount, and a starting year. We run it against real
+          adjusted closing prices — dividends included — and show you the whole
+          curve, not just the happy ending.
+        </p>
+        <ul class="lp-points">
+          <li>Eleven major index funds, back to 1993</li>
+          <li>No signup, no paywall, no tracking</li>
+          <li>Every assumption written down</li>
+        </ul>
+        <p class="lp-hero-note">
+          Educational only — nothing here is investment advice.
+        </p>
+      </div>
+
+      <div class="lp-calc" role="group" aria-labelledby="lp-calc-label">
+        <p class="lp-calc-line" id="lp-calc-label">
+          <span class="lp-calc-static">If I had put</span>
+          <span class="lp-field">
+            <span class="lp-dollar">$</span>
+            <input id="lp-amount" type="number" min="100" max="1000000" step="100"
+                   value="1000" aria-label="Amount invested" />
+          </span>
+          <span class="lp-calc-static">into</span>
+          <select id="lp-ticker" aria-label="Fund"></select>
+          <select id="lp-years" aria-label="Years ago">
+            <option value="5">5 years ago</option>
+            <option value="10" selected>10 years ago</option>
+            <option value="15">15 years ago</option>
+            <option value="20">20 years ago</option>
+            <option value="30">30 years ago</option>
+          </select>
+        </p>
+
+        <div class="lp-result" id="lp-result">
+          <div class="lp-headline">
+            <span class="lp-headline-label">it would be worth</span>
+            <output class="lp-hero-number" id="lp-final" aria-live="polite">—</output>
+          </div>
+          <dl class="lp-stats">
+            <div><dt>Gain</dt><dd id="lp-gain">—</dd></div>
+            <div><dt>Multiple</dt><dd id="lp-multiple">—</dd></div>
+            <div><dt>Annualized</dt><dd id="lp-cagr">—</dd></div>
+          </dl>
+        </div>
+
+        <figure class="lp-figure">
+          <div class="lp-chart" id="lp-chart"></div>
+          <figcaption id="lp-caption" class="lp-caption">Loading real market data…</figcaption>
+        </figure>
+
+        <p class="lp-error" id="lp-error" hidden></p>
+
+        <a class="lp-cta" href="/backtest">Try a full portfolio backtest →</a>
+      </div>
+    </section>
+    </div>
+
+    <!-- ============== Three doors: intent segmentation ============== -->
+    <section class="lp-doors">
+      <h2 class="lp-section-title">Where do you want to start?</h2>
+      <p class="lp-doors-hint">Click a card to grow it — each one opens onto further reading.</p>
+      <div class="lp-door-grid">
+        <details class="lp-door">
+          <summary class="lp-door-summary">
+            <img class="lp-door-art" src="/img/what-are-etfs.svg" alt="" loading="lazy" />
+            <span class="lp-door-eyebrow">New to this</span>
+            <span class="lp-door-title">Start from zero</span>
+            <p>What an ETF is, why index funds beat most stock-picking, and how a
+               401(k), a Traditional IRA, and a Roth actually differ.</p>
+            <span class="lp-door-grow">Click to grow<span class="lp-chev" aria-hidden="true"></span></span>
+          </summary>
+          <div class="lp-door-panel">
+            <a class="lp-door-go" href="/learn">Read the basics →</a>
+            <p class="lp-res-label">Straight from the source</p>
+            <ul class="lp-res">
+              <li>
+                <a href="https://www.investor.gov/introduction-investing/investing-basics/investment-products/mutual-funds-and-exchange-traded-4"
+                   target="_blank" rel="noopener">
+                  <span class="lp-res-kind" data-kind="read">Read</span>
+                  <span class="lp-res-title">Index Funds</span>
+                  <span class="lp-res-src">SEC · Investor.gov</span>
+                </a>
+              </li>
+              <li>
+                <a href="https://www.investor.gov/introduction-investing/investing-basics/investment-products/mutual-funds-and-exchange-traded-2"
+                   target="_blank" rel="noopener">
+                  <span class="lp-res-kind" data-kind="read">Read</span>
+                  <span class="lp-res-title">Exchange-Traded Funds (ETFs)</span>
+                  <span class="lp-res-src">SEC · Investor.gov</span>
+                </a>
+              </li>
+              <li>
+                <a href="https://www.irs.gov/retirement-plans/roth-comparison-chart"
+                   target="_blank" rel="noopener">
+                  <span class="lp-res-kind" data-kind="read">Read</span>
+                  <span class="lp-res-title">Roth 401(k) vs Roth IRA vs pre-tax, side by side</span>
+                  <span class="lp-res-src">IRS</span>
+                </a>
+              </li>
+              <li>
+                <a href="https://www.youtube.com/watch?v=we_7F5N3ByQ"
+                   target="_blank" rel="noopener">
+                  <span class="lp-res-kind" data-kind="watch">Watch</span>
+                  <span class="lp-res-title">Investing for Beginners — guest lecture</span>
+                  <span class="lp-res-src">Ben Felix</span>
+                </a>
+              </li>
+            </ul>
+          </div>
+        </details>
+
+        <details class="lp-door">
+          <summary class="lp-door-summary">
+            <img class="lp-door-art" src="/img/money-basics.svg" alt="" loading="lazy" />
+            <span class="lp-door-eyebrow">Just looking</span>
+            <span class="lp-door-title">See the markets</span>
+            <p>Eleven major funds across every range from one day to twenty years,
+               today's biggest movers, and all 503 S&amp;P constituents.</p>
+            <span class="lp-door-grow">Click to grow<span class="lp-chev" aria-hidden="true"></span></span>
+          </summary>
+          <div class="lp-door-panel">
+            <a class="lp-door-go" href="/markets">Open the dashboard →</a>
+            <p class="lp-res-label">Worth reading first</p>
+            <ul class="lp-res">
+              <li>
+                <a href="https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/characteristics-mutual-funds-exchange-traded-funds"
+                   target="_blank" rel="noopener">
+                  <span class="lp-res-kind" data-kind="read">Read</span>
+                  <span class="lp-res-title">Characteristics of Mutual Funds and ETFs</span>
+                  <span class="lp-res-src">SEC investor bulletin</span>
+                </a>
+              </li>
+              <li>
+                <a href="https://www.investor.gov/sites/investorgov/files/2019-02/mutual-funds-ETFs.pdf"
+                   target="_blank" rel="noopener">
+                  <span class="lp-res-kind" data-kind="pdf">PDF</span>
+                  <span class="lp-res-title">Mutual Funds and ETFs — a guide for investors</span>
+                  <span class="lp-res-src">SEC</span>
+                </a>
+              </li>
+              <li>
+                <a href="https://www.youtube.com/watch?v=ssuaVMbRtCo"
+                   target="_blank" rel="noopener">
+                  <span class="lp-res-kind" data-kind="watch">Watch</span>
+                  <span class="lp-res-title">Why index funds aren't going to break the market</span>
+                  <span class="lp-res-src">Ben Felix</span>
+                </a>
+              </li>
+            </ul>
+          </div>
+        </details>
+
+        <details class="lp-door">
+          <summary class="lp-door-summary">
+            <img class="lp-door-art" src="/img/what-are-index-funds.svg" alt="" loading="lazy" />
+            <span class="lp-door-eyebrow">I know what Sharpe means</span>
+            <span class="lp-door-title">Run a backtest</span>
+            <p>Weight any mix of eleven funds, pick a window, and get the equity
+               curve against the S&amp;P 500 with the full risk panel.</p>
+            <span class="lp-door-grow">Click to grow<span class="lp-chev" aria-hidden="true"></span></span>
+          </summary>
+          <div class="lp-door-panel">
+            <a class="lp-door-go" href="/backtest">Open the lab →</a>
+            <p class="lp-res-label">Allocation, from people who argue about it</p>
+            <ul class="lp-res">
+              <li>
+                <a href="https://www.bogleheads.org/wiki/Three-fund_portfolio"
+                   target="_blank" rel="noopener">
+                  <span class="lp-res-kind" data-kind="read">Read</span>
+                  <span class="lp-res-title">The three-fund portfolio</span>
+                  <span class="lp-res-src">Bogleheads wiki</span>
+                </a>
+              </li>
+              <li>
+                <a href="https://www.bogleheads.org/wiki/Lazy_portfolios"
+                   target="_blank" rel="noopener">
+                  <span class="lp-res-kind" data-kind="read">Read</span>
+                  <span class="lp-res-title">Lazy portfolios — the standard reference weights</span>
+                  <span class="lp-res-src">Bogleheads wiki</span>
+                </a>
+              </li>
+              <li>
+                <a href="https://www.irs.gov/newsroom/401k-limit-increases-to-24500-for-2026-ira-limit-increases-to-7500"
+                   target="_blank" rel="noopener">
+                  <span class="lp-res-kind" data-kind="read">Read</span>
+                  <span class="lp-res-title">2026 contribution limits — what you can actually put in</span>
+                  <span class="lp-res-src">IRS</span>
+                </a>
+              </li>
+            </ul>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <!-- ============== Numbers band ============== -->
+    <section class="lp-band">
+      <div class="lp-band-inner">
+        <div class="lp-band-stat">
+          <span class="lp-band-num">33</span>
+          <span class="lp-band-label">years of daily prices</span>
+        </div>
+        <div class="lp-band-stat">
+          <span class="lp-band-num">503</span>
+          <span class="lp-band-label">S&amp;P 500 constituents</span>
+        </div>
+        <div class="lp-band-stat">
+          <span class="lp-band-num">41.7%</span>
+          <span class="lp-band-label">of the 2010 index is gone today</span>
+        </div>
+        <div class="lp-band-stat">
+          <span class="lp-band-num">$0</span>
+          <span class="lp-band-label">to use, no account required</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============== Live headlines ============== -->
+    <!-- Populated by landing.js from /api/stocks/SPY/news. Headline, publisher
+         and link only — readers land on the original source. -->
+    <section class="lp-news" id="lp-news" hidden>
+      <div class="lp-news-inner">
+        <div class="lp-news-head">
+          <h2 class="lp-section-title">What the market is reading today</h2>
+          <span class="lp-news-stamp" id="lp-news-stamp"></span>
+        </div>
+        <ul class="lp-news-list" id="lp-news-list"></ul>
+        <p class="lp-news-note">
+          Headlines via Yahoo Finance, refreshed every 15 minutes. Links go to the
+          original publisher — we don't reproduce article text, and a headline
+          appearing here is not an endorsement of its claims.
+        </p>
+      </div>
+    </section>
+
+    <!-- ============== Why the numbers are trustworthy ============== -->
+    <section class="lp-rigor">
+      <h2 class="lp-section-title">Most backtesters quietly flatter themselves.</h2>
+      <p class="lp-rigor-lede">Four places where this one refuses to.</p>
+      <div class="lp-rigor-grid">
+        <div class="lp-rigor-item">
+          <h3>Real T-bill rate</h3>
+          <p>A 0% risk-free rate inflates every Sharpe ratio. We derive the actual
+             rate from BIL over the same window.</p>
+        </div>
+        <div class="lp-rigor-item">
+          <h3>Inflation-adjusted</h3>
+          <p>7% nominal in a 5% inflation year is under 2% real. CAGR is restated
+             from BLS CPI-U data.</p>
+        </div>
+        <div class="lp-rigor-item">
+          <h3>Survivorship bias, measured</h3>
+          <p>406 dated index changes replayed back to 1976. We publish the bias as
+             a number instead of disclaiming it.</p>
+        </div>
+        <div class="lp-rigor-item">
+          <h3>Assumptions stated</h3>
+          <p>Daily rebalancing, no fees, no taxes. That flatters results — and we
+             say so rather than burying it.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="lp-final">
+      <h2>Free, nothing to install, running on real data.</h2>
+      <div class="lp-final-actions">
+        <a class="lp-btn lp-btn-primary lp-btn-lg" href="/markets">Open the app</a>
+        <button class="lp-btn lp-btn-ghost lp-btn-lg" id="lp-final-signin" type="button">
+          Create an account
+        </button>
+      </div>
+    </section>
+  </main>
+
+  <!-- Sign in / create account, same endpoints the app uses -->
+  <dialog id="lp-auth-modal" class="lp-modal">
+    <form class="lp-modal-form" id="lp-auth-form">
+      <h3 id="lp-auth-title">Sign in</h3>
+      <p class="lp-modal-sub" id="lp-auth-sub">
+        An account is only needed to pin stocks to a watchlist. Everything else
+        works signed out.
+      </p>
+      <label>Username
+        <input id="lp-auth-username" type="text" minlength="3" maxlength="32"
+               autocomplete="username" required />
+      </label>
+      <label>Password
+        <input id="lp-auth-password" type="password" minlength="8" maxlength="128"
+               autocomplete="current-password" required />
+      </label>
+      <p class="lp-modal-error" id="lp-auth-error" hidden></p>
+      <div class="lp-modal-actions">
+        <button class="lp-btn lp-btn-primary" id="lp-auth-submit" type="submit">Sign in</button>
+        <button class="lp-btn lp-btn-ghost" id="lp-auth-close" type="button">Cancel</button>
+      </div>
+      <button class="lp-linklike" id="lp-auth-switch" type="button">
+        New here? Create an account
+      </button>
+    </form>
+  </dialog>
+
+  <footer class="lp-footer">
+    <p class="lp-disclaimer">
+      <strong>Educational tool only. Nothing here is investment advice.</strong>
+      Past performance does not predict future returns. Prices are Yahoo Finance
+      adjusted daily closes, delayed roughly 15 minutes.
+    </p>
+    <p class="lp-colophon">
+      Built by Arthur Kim · <a href="https://github.com/arthurykim/portfolio-decision-tool">Source on GitHub</a>
+    </p>
+  </footer>
+
+  <script src="/landing.js?v=5"></script>
+</body>
+</html>

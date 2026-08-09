@@ -1,0 +1,470 @@
+/* Landing page. Tokens come from tokens.css — never redefine a color here. */
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--text-primary);
+  font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3 { margin: 0; line-height: 1.15; }
+a { color: inherit; }
+
+/* ---------------------------------------------------------------- topbar */
+.lp-topbar {
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-1);
+  position: sticky; top: 0; z-index: 10;
+}
+.lp-topbar-inner {
+  max-width: 1120px; margin: 0 auto; padding: 14px 24px;
+  display: flex; justify-content: space-between; align-items: center; gap: 16px;
+}
+.lp-brand { font-weight: 640; font-size: 16px; text-decoration: none; letter-spacing: -0.01em; }
+.lp-nav { display: flex; align-items: center; gap: 20px; }
+.lp-nav > a { color: var(--text-secondary); text-decoration: none; font-size: 14px; }
+.lp-nav > a:hover { color: var(--text-primary); }
+
+/* ---------------------------------------------------------------- buttons */
+.lp-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 8px 16px; border-radius: 9px; border: 1px solid transparent;
+  font: inherit; font-size: 14px; font-weight: 560; line-height: 1.2;
+  text-decoration: none; white-space: nowrap; cursor: pointer;
+  transition: background-color 130ms ease, border-color 130ms ease, transform 130ms ease;
+}
+.lp-btn-primary {
+  background: var(--accent); border-color: var(--accent);
+  color: #ffffff !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.16);
+}
+.lp-btn-primary:hover { filter: brightness(1.08); transform: translateY(-1px); }
+.lp-btn-ghost {
+  background: transparent; border-color: var(--border);
+  color: var(--text-secondary) !important;
+}
+.lp-btn-ghost:hover { border-color: var(--accent); color: var(--text-primary) !important; }
+.lp-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.lp-auth { display: inline-flex; align-items: center; gap: 12px; }
+.lp-user-chip { font-size: 13.5px; font-weight: 600; color: var(--text-primary); }
+.lp-linklike {
+  background: none; border: 0; padding: 0; cursor: pointer;
+  color: var(--accent); font: inherit; font-size: 13.5px; text-align: left;
+}
+.lp-linklike:hover { text-decoration: underline; }
+
+/* ---------------------------------------------------------------- hero */
+/* A soft accent wash behind the hero so the page doesn't read as a flat slab. */
+.lp-hero-wrap {
+  position: relative;
+  background:
+    radial-gradient(60% 80% at 78% 8%, color-mix(in srgb, var(--accent) 13%, transparent), transparent 70%),
+    radial-gradient(50% 70% at 8% 0%, color-mix(in srgb, var(--accent) 7%, transparent), transparent 65%);
+  border-bottom: 1px solid var(--border);
+}
+.lp-hero {
+  max-width: 1120px; margin: 0 auto; padding: 72px 24px 64px;
+  display: grid; grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  gap: 56px; align-items: start;
+}
+.lp-hero-copy h1 {
+  font-size: clamp(34px, 4.4vw, 52px);
+  letter-spacing: -0.028em; font-weight: 660;
+}
+.lp-sub {
+  color: var(--text-secondary); font-size: 17px;
+  margin: 20px 0 0; max-width: 46ch;
+}
+.lp-points {
+  list-style: none; padding: 0; margin: 26px 0 0;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.lp-points li {
+  position: relative; padding-left: 26px;
+  color: var(--text-primary); font-size: 15px;
+}
+/* Checkmark drawn in CSS so there is no icon dependency. */
+.lp-points li::before {
+  content: ""; position: absolute; left: 4px; top: 6px;
+  width: 6px; height: 11px;
+  border-right: 2px solid var(--accent); border-bottom: 2px solid var(--accent);
+  transform: rotate(45deg);
+}
+.lp-hero-note {
+  color: var(--muted); font-size: 12.5px; margin: 24px 0 0;
+  padding-top: 16px; border-top: 1px solid var(--border); max-width: 46ch;
+}
+
+/* The calculator card — the product, running, on the front page. */
+.lp-calc {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 26px 28px 24px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 12px 32px -12px rgba(0,0,0,0.18);
+}
+.lp-calc-line {
+  margin: 0 0 20px; font-size: 16px; color: var(--text-secondary);
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+}
+.lp-calc-static { white-space: nowrap; }
+
+.lp-field {
+  display: inline-flex; align-items: baseline;
+  border-bottom: 2px solid var(--accent);
+  padding: 0 2px;
+}
+.lp-dollar { color: var(--text-primary); font-weight: 560; }
+.lp-field input {
+  width: 5.2em; border: 0; background: none; padding: 2px 0;
+  font: inherit; font-weight: 560; color: var(--text-primary);
+  -moz-appearance: textfield;
+}
+.lp-field input::-webkit-outer-spin-button,
+.lp-field input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.lp-field input:focus { outline: none; }
+.lp-field:focus-within { border-bottom-width: 2px; box-shadow: 0 2px 0 -1px var(--accent); }
+
+.lp-calc select {
+  font: inherit; font-weight: 560; color: var(--text-primary);
+  background-color: var(--surface-1);
+  border: 0; border-bottom: 2px solid var(--accent);
+  padding: 2px 2px 2px 0; cursor: pointer; max-width: 100%;
+}
+.lp-calc select option { background-color: var(--surface-1); color: var(--text-primary); }
+.lp-calc select:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+/* Hero number: the headline stat, per marks-and-anatomy. */
+.lp-headline { display: flex; align-items: baseline; flex-wrap: wrap; gap: 10px; }
+.lp-headline-label { color: var(--muted); font-size: 14px; }
+.lp-hero-number {
+  font-size: clamp(38px, 5vw, 54px);
+  font-weight: 680; letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+  line-height: 1.05;
+}
+
+.lp-stats {
+  display: flex; flex-wrap: wrap; gap: 28px;
+  margin: 14px 0 0; padding: 14px 0 0;
+  border-top: 1px solid var(--border);
+}
+.lp-stats div { display: flex; flex-direction: column; gap: 2px; }
+.lp-stats dt { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.045em; }
+.lp-stats dd {
+  margin: 0; font-size: 19px; font-weight: 600;
+  font-variant-numeric: tabular-nums; color: var(--text-primary);
+}
+.lp-stats dd.up { color: var(--delta-up); }
+.lp-stats dd.down { color: var(--delta-down); }
+
+.lp-figure { margin: 20px 0 0; }
+.lp-chart { height: 190px; position: relative; }
+.lp-chart svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.lp-caption { color: var(--muted); font-size: 12px; margin: 8px 0 0; }
+
+/* Animate the curve drawing itself in — motion as feedback, not decoration. */
+.lp-line { fill: none; stroke: var(--series-1); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.lp-line.draw { animation: lp-draw 900ms cubic-bezier(0.22, 0.61, 0.36, 1) forwards; }
+@keyframes lp-draw { from { stroke-dashoffset: var(--len); } to { stroke-dashoffset: 0; } }
+.lp-area { fill: url(#lp-fade); stroke: none; }
+.lp-axis { stroke: var(--baseline); stroke-width: 1; }
+.lp-gridline { stroke: var(--grid); stroke-width: 1; }
+.lp-tick { fill: var(--muted); font-size: 11px; }
+
+/* Hover layer */
+.lp-hit { fill: transparent; cursor: crosshair; }
+.lp-cross { stroke: var(--baseline); stroke-width: 1; stroke-dasharray: 3 3; }
+.lp-dot { fill: var(--series-1); stroke: var(--surface-1); stroke-width: 2; }
+.lp-tip {
+  position: absolute; pointer-events: none;
+  background: var(--surface-1); border: 1px solid var(--border);
+  border-radius: 7px; padding: 6px 9px; font-size: 12px;
+  color: var(--text-primary); white-space: nowrap;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.10);
+  transform: translate(-50%, -100%);
+}
+.lp-tip b { font-variant-numeric: tabular-nums; }
+.lp-tip span { color: var(--muted); }
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-line.draw { animation: none; stroke-dashoffset: 0; }
+}
+
+.lp-error { color: var(--delta-down); font-size: 14px; margin: 12px 0 0; }
+
+.lp-cta {
+  display: inline-block; margin: 20px 0 0;
+  color: var(--accent); font-weight: 560; font-size: 15px; text-decoration: none;
+}
+.lp-cta:hover { text-decoration: underline; }
+
+/* ---------------------------------------------------------------- doors */
+.lp-section-title {
+  font-size: clamp(23px, 2.6vw, 30px); letter-spacing: -0.022em;
+  font-weight: 640; max-width: 26ch;
+}
+.lp-doors { max-width: 1120px; margin: 0 auto; padding: 40px 24px 16px; }
+.lp-door-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+  gap: 18px; margin-top: 28px;
+}
+.lp-doors-hint { color: var(--muted); font-size: 13.5px; margin: 12px 0 0; }
+
+/* Each door is a native <details>. That buys keyboard support, Enter/Space
+ * toggling, and the correct expanded/collapsed semantics for screen readers
+ * without a line of JS — so the section still works if landing.js fails. */
+.lp-door {
+  background: var(--surface-1); border: 1px solid var(--border);
+  border-radius: 12px;
+  /* Cards in a grid row stretch to equal height; align-self lets an opened one
+   * grow past its siblings instead of stretching all three. */
+  align-self: start;
+  transition: border-color 140ms ease, transform 160ms cubic-bezier(0.22,0.61,0.36,1),
+              box-shadow 160ms ease;
+}
+.lp-door-summary {
+  display: flex; flex-direction: column; gap: 7px;
+  padding: 22px 22px 20px;
+  cursor: pointer; list-style: none;
+}
+/* Both are required: ::marker for Firefox, ::-webkit-details-marker for Safari. */
+.lp-door-summary::marker { content: ""; }
+.lp-door-summary::-webkit-details-marker { display: none; }
+.lp-door-summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 12px; }
+
+/* Only real pointers get the lift — on touch, :hover latches after a tap and
+ * leaves the card stuck in its raised state. */
+@media (hover: hover) {
+  .lp-door:hover {
+    border-color: var(--accent); transform: translateY(-4px);
+    box-shadow: 0 16px 34px -16px rgba(0,0,0,0.42);
+  }
+  .lp-door:hover .lp-door-art { transform: scale(1.035); }
+  .lp-door:hover .lp-chev { transform: translateY(2px); }
+}
+.lp-door[open] {
+  border-color: var(--accent);
+  box-shadow: 0 16px 34px -16px rgba(0,0,0,0.42);
+}
+/* An open card should not also float — the lift is the "you could open this"
+ * signal, and keeping it would make the expanded card look detached. */
+.lp-door[open]:hover { transform: none; }
+
+/* The Learn illustrations already carry their own dark-mode rules. */
+/* contain, not cover — these are diagrams, and cropping one mid-figure reads
+ * as a broken image rather than a thumbnail. */
+.lp-door-art {
+  display: block; width: 100%; height: 118px; object-fit: contain;
+  border: 1px solid var(--border); border-radius: 8px;
+  background: var(--page); padding: 10px; margin-bottom: 12px;
+  transition: transform 220ms cubic-bezier(0.22,0.61,0.36,1);
+}
+.lp-door-eyebrow {
+  color: var(--muted); font-size: 11.5px; font-weight: 560;
+  text-transform: uppercase; letter-spacing: 0.055em;
+}
+.lp-door-title { font-size: 20px; font-weight: 620; letter-spacing: -0.015em; }
+.lp-door-summary p { color: var(--text-secondary); font-size: 14.5px; margin: 2px 0 0; }
+
+.lp-door-grow {
+  display: inline-flex; align-items: center; gap: 6px;
+  color: var(--accent); font-size: 14px; font-weight: 560; margin-top: 10px;
+}
+.lp-chev {
+  width: 7px; height: 7px;
+  border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
+  transform: rotate(45deg); margin-bottom: 3px;
+  transition: transform 200ms cubic-bezier(0.22,0.61,0.36,1);
+}
+.lp-door[open] .lp-chev { transform: rotate(-135deg); margin-bottom: -2px; }
+.lp-door[open] .lp-door-grow { color: var(--muted); }
+.lp-door[open] .lp-door-grow::after { content: " — close"; }
+
+/* -------------------------------------------------- the panel that grows in */
+.lp-door-panel {
+  padding: 0 22px 22px;
+  border-top: 1px solid var(--border);
+  margin-top: -6px; padding-top: 16px;
+}
+/* <details> flips its content from display:none, so a height transition has
+ * nothing to interpolate. Running a keyframe on open is the honest version:
+ * it animates reliably in every browser. Closing stays instant. */
+.lp-door[open] .lp-door-panel { animation: lp-grow 260ms cubic-bezier(0.22,0.61,0.36,1); }
+@keyframes lp-grow {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.lp-door-go {
+  display: inline-block; color: var(--accent);
+  font-size: 14.5px; font-weight: 600; text-decoration: none;
+}
+.lp-door-go:hover { text-decoration: underline; }
+
+.lp-res-label {
+  color: var(--muted); font-size: 11.5px; font-weight: 560;
+  text-transform: uppercase; letter-spacing: 0.055em;
+  margin: 18px 0 8px;
+}
+.lp-res { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 2px; }
+.lp-res a {
+  display: grid; grid-template-columns: auto 1fr; gap: 2px 10px;
+  align-items: baseline;
+  padding: 9px 10px; margin: 0 -10px;
+  border-radius: 8px; text-decoration: none;
+  transition: background-color 120ms ease;
+}
+.lp-res a:hover { background: var(--page); }
+.lp-res a:hover .lp-res-title { color: var(--accent); }
+.lp-res a:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
+.lp-res-kind {
+  grid-row: span 2;
+  font-size: 10px; font-weight: 640; letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 3px 6px; border-radius: 5px; white-space: nowrap;
+  border: 1px solid var(--border); color: var(--muted);
+}
+.lp-res-kind[data-kind="watch"] { color: var(--series-8); border-color: color-mix(in srgb, var(--series-8) 40%, transparent); }
+.lp-res-kind[data-kind="read"]  { color: var(--accent);   border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
+.lp-res-title { color: var(--text-primary); font-size: 14px; font-weight: 560; transition: color 120ms ease; }
+.lp-res-src { color: var(--muted); font-size: 12px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-door, .lp-door-art, .lp-chev { transition: none; }
+  .lp-door:hover { transform: none; }
+  .lp-door[open] .lp-door-panel { animation: none; }
+}
+
+/* ---------------------------------------------------------------- band */
+.lp-band {
+  margin: 44px 0 8px;
+  border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+  background: var(--surface-1);
+}
+.lp-band-inner {
+  max-width: 1120px; margin: 0 auto; padding: 30px 24px;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 24px;
+}
+.lp-band-stat { display: flex; flex-direction: column; gap: 4px; }
+.lp-band-num {
+  font-size: clamp(28px, 3.4vw, 38px); font-weight: 680;
+  letter-spacing: -0.03em; font-variant-numeric: tabular-nums;
+  color: var(--accent); line-height: 1;
+}
+.lp-band-label { color: var(--text-secondary); font-size: 13.5px; }
+
+/* ---------------------------------------------------------------- news */
+.lp-news-inner { max-width: 1120px; margin: 0 auto; padding: 48px 24px 8px; }
+.lp-news-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  flex-wrap: wrap; gap: 8px 16px;
+}
+.lp-news-stamp { color: var(--muted); font-size: 12.5px; }
+.lp-news-list {
+  list-style: none; padding: 0; margin: 22px 0 0;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 2px 28px;
+}
+.lp-news-list a {
+  display: flex; flex-direction: column; gap: 3px;
+  padding: 13px 12px; margin: 0 -12px;
+  border-radius: 9px; text-decoration: none;
+  border-bottom: 1px solid var(--border);
+  transition: background-color 120ms ease;
+}
+.lp-news-list a:hover { background: var(--surface-1); }
+.lp-news-list a:hover .lp-news-title { color: var(--accent); }
+.lp-news-list a:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
+.lp-news-title {
+  color: var(--text-primary); font-size: 15px; font-weight: 560; line-height: 1.4;
+  transition: color 120ms ease;
+  /* Headline lengths vary wildly; clamping keeps the grid rows even. */
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.lp-news-meta { color: var(--muted); font-size: 12.5px; }
+.lp-news-note {
+  color: var(--muted); font-size: 12.5px; margin: 22px 0 0;
+  padding-top: 14px; border-top: 1px solid var(--border); max-width: 68ch;
+}
+
+/* ---------------------------------------------------------------- rigor */
+.lp-rigor { max-width: 1120px; margin: 0 auto; padding: 48px 24px; }
+.lp-rigor-lede { color: var(--text-secondary); font-size: 16px; margin: 10px 0 0; }
+.lp-rigor-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 30px 40px; margin-top: 30px;
+}
+.lp-rigor-item h3 {
+  font-size: 16px; font-weight: 620; padding-bottom: 8px;
+  border-bottom: 2px solid var(--accent); display: inline-block;
+}
+.lp-rigor-item p { color: var(--text-secondary); font-size: 14.5px; margin: 10px 0 0; }
+
+/* ---------------------------------------------------------------- final */
+.lp-final {
+  max-width: 1120px; margin: 0 auto; padding: 20px 24px 72px;
+  text-align: center;
+}
+.lp-final h2 { font-size: clamp(21px, 2.4vw, 27px); font-weight: 620; letter-spacing: -0.02em; }
+.lp-final-actions {
+  display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 20px;
+}
+.lp-btn-lg { padding: 12px 24px; font-size: 15px; }
+
+/* ---------------------------------------------------------------- modal */
+.lp-modal {
+  border: 1px solid var(--border); border-radius: 14px; padding: 0;
+  background: var(--surface-1); color: var(--text-primary);
+  width: min(380px, 92vw);
+  box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.5);
+}
+.lp-modal::backdrop { background: rgba(0, 0, 0, 0.45); }
+.lp-modal-form { display: flex; flex-direction: column; gap: 13px; padding: 24px; }
+.lp-modal-form h3 { font-size: 19px; font-weight: 640; letter-spacing: -0.015em; }
+.lp-modal-sub { color: var(--text-secondary); font-size: 13.5px; margin: -4px 0 2px; }
+.lp-modal-form label {
+  display: flex; flex-direction: column; gap: 5px;
+  font-size: 12.5px; font-weight: 600; color: var(--text-secondary);
+}
+.lp-modal-form input {
+  padding: 9px 11px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--page); color: var(--text-primary); font: inherit; font-size: 14.5px;
+}
+.lp-modal-form input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.lp-modal-error { color: var(--delta-down); font-size: 13.5px; margin: 0; }
+.lp-modal-actions { display: flex; gap: 9px; margin-top: 4px; }
+.lp-modal-actions .lp-btn { flex: 1; }
+
+/* ---------------------------------------------------------------- footer */
+.lp-footer {
+  border-top: 1px solid var(--border); background: var(--surface-1);
+  padding: 26px 24px;
+}
+.lp-disclaimer, .lp-colophon {
+  max-width: 1120px; margin: 0 auto; color: var(--muted); font-size: 12.5px;
+}
+.lp-disclaimer strong { color: var(--text-secondary); }
+.lp-colophon { margin-top: 8px; }
+
+/* ---------------------------------------------------------------- mobile */
+@media (max-width: 900px) {
+  .lp-hero { grid-template-columns: 1fr; gap: 34px; padding-top: 48px; }
+  .lp-sub { max-width: none; }
+}
+@media (max-width: 700px) {
+  /* Wrap rather than stack. Stacking into a column pushed the primary CTA to
+   * the far left under the brand, where it read as a stray label instead of
+   * the main action. Wrapping keeps it bottom-right, where a CTA belongs. */
+  .lp-topbar-inner { flex-wrap: wrap; padding: 12px 18px; gap: 10px 12px; }
+  .lp-nav { width: 100%; justify-content: flex-end; gap: 14px; flex-wrap: wrap; }
+  .lp-band-inner { padding: 24px 18px; gap: 20px; }
+  .lp-door-art { height: 92px; }
+  .lp-calc { padding: 20px 18px 18px; }
+  .lp-stats { gap: 20px; }
+  .lp-hero { padding: 34px 18px 40px; }
+  .lp-doors, .lp-rigor, .lp-final { padding-left: 18px; padding-right: 18px; }
+}
