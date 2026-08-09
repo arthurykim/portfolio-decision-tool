@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 230" role="img"
+     aria-label="Both sides of a minus 110 market imply 52.4 percent, adding to 104.8 percent — the extra 4.8 points is the house edge">
+  <style>
+    text{font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+    .ink{fill:#0b0b0b}.sub{fill:#52514e}.muted{fill:#898781}
+    .panel{fill:none;stroke:#e1e0d9}.track{fill:#f0efec}
+    .fill{fill:#898781}.vig{fill:#d2452f}.vig-t{fill:#b03725}
+    @media (prefers-color-scheme:dark){
+      .ink{fill:#fff}.sub{fill:#c3c2b7}.panel{stroke:#2c2c2a}.track{fill:#2c2c2a}
+      .vig{fill:#c94430}.vig-t{fill:#ec7a66}}
+  </style>
+  <text class="muted" x="20" y="22" font-size="12">A −110 / −110 market: what the prices actually claim</text>
+
+  <rect class="panel" x="16" y="36" width="688" height="176" rx="14" stroke-width="1.5"/>
+
+  <text class="ink" x="40" y="72" font-size="13" font-weight="800">Side A  −110</text>
+  <rect class="track" x="190" y="58" width="420" height="18" rx="9"/>
+  <rect class="fill" x="190" y="58" width="220" height="18" rx="9"/>
+  <text class="sub" x="626" y="72" font-size="13" font-weight="700">52.4%</text>
+
+  <text class="ink" x="40" y="112" font-size="13" font-weight="800">Side B  −110</text>
+  <rect class="track" x="190" y="98" width="420" height="18" rx="9"/>
+  <rect class="fill" x="190" y="98" width="220" height="18" rx="9"/>
+  <text class="sub" x="626" y="112" font-size="13" font-weight="700">52.4%</text>
+
+  <text class="ink" x="40" y="156" font-size="13" font-weight="800">Total</text>
+  <rect class="track" x="190" y="142" width="420" height="18" rx="9"/>
+  <rect class="fill" x="190" y="142" width="400" height="18" rx="9"/>
+  <rect class="vig" x="590" y="142" width="20" height="18" rx="4"/>
+  <text class="vig-t" x="626" y="156" font-size="13" font-weight="700">104.8%</text>
+
+  <text class="muted" x="190" y="184" font-size="11">The 4.8 points over 100% is the vig. You must be right 52.4% of the time just to break even.</text>
+</svg>

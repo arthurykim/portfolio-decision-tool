@@ -66,7 +66,7 @@ tasks:
   check:
     desc: Full verification - compile, validate configs, run tests
     cmds:
-      - "{{.PY}} -m py_compile main.py data.py backtest.py rag.py db.py auth.py scripts/refresh_market.py eval/ragas_eval.py"
+      - "{{.PY}} -m py_compile main.py data.py backtest.py rag.py db.py auth.py embeddings.py vectorstore.py scripts/refresh_market.py scripts/build_vectors.py eval/ragas_eval.py"
       - "{{.PY}} -c \"import yaml; [yaml.safe_load(open(f)) for f in ['.github/workflows/ci.yml', '.github/workflows/market-refresh.yml', 'docker-compose.yml']]\""
       - "{{.PY}} -m pytest tests/ -q"
 
@@ -120,6 +120,37 @@ tasks:
       - "{{.PY}} eval/history_report.py {{.CLI_ARGS}}"
 
   eval:retrieval:
-    desc: Score BM25 retrieval against the golden set (no API key needed)
+    desc: Score retrieval against the golden set (no API key needed)
     cmds:
       - "{{.PY}} eval/retrieval_eval.py"
+
+  eval:chunking:
+    desc: Compare every chunking strategy on the golden set (no API key needed)
+    cmds:
+      - "{{.PY}} eval/chunking_sweep.py"
+
+  eval:modes:
+    desc: Compare bm25 / dense / hybrid retrieval (needs Milvus + vectors:build)
+    cmds:
+      - "{{.PY}} eval/retrieval_modes.py"
+
+  vectors:up:
+    desc: Start the Milvus vector store (etcd + MinIO + Milvus)
+    cmds:
+      - docker compose --profile vectors up -d
+      - 'echo "Milvus starting: cold start takes ~1-2 min. Check with task vectors:status."'
+
+  vectors:down:
+    desc: Stop the Milvus vector store
+    cmds:
+      - docker compose --profile vectors down
+
+  vectors:build:
+    desc: Chunk, embed, and load the knowledge base into Milvus
+    cmds:
+      - "{{.PY}} scripts/build_vectors.py"
+
+  vectors:status:
+    desc: Show whether Milvus is reachable and what is indexed
+    cmds:
+      - "{{.PY}} -c \"import env, json; env.load_env(); import vectorstore; print(json.dumps(vectorstore.stats(), indent=2))\""

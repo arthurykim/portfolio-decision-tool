@@ -8,3 +8,12 @@ yfinance>=1.5.2,<2.0
 pyarrow>=25.0,<26.0
 pydantic>=2.13,<3.0
 google-genai>=2.14,<3.0
+
+# --- Retrieval: dense/hybrid (optional at runtime) ---------------------------
+# Retrieval degrades to pure-Python BM25 if Milvus is not running, but these are
+# needed to build or query the vector index. sentence-transformers pulls torch,
+# which is the bulk of the image size.
+sentence-transformers>=5.0,<6.0
+transformers>=5.0,<6.0
+pymilvus>=3.0,<4.0
+langchain-text-splitters>=1.0,<2.0

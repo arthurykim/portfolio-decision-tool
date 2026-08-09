@@ -149,39 +149,54 @@ Without a key the chat still answers from the knowledge base in extractive mode.
 ## Testing & evaluation
 
 ```bash
-task test            # 83 unit + API tests; hermetic (synthetic data if no cache)
+task test            # 122 unit + API tests; hermetic (synthetic data if no cache)
 task eval:retrieval  # retrieval quality — no API key needed
+task eval:chunking   # compare all 6 chunking strategies — no API key needed
+task eval:modes      # compare bm25 / dense / hybrid (needs Milvus)
 task eval            # RAGAS generation quality (needs GOOGLE_API_KEY)
 ```
 
 ### Retrieval quality
 
-The RAG pipeline splits into a **retrieval** half (BM25 over 9 knowledge files →
-76 section-level chunks) and a **generation** half (Gemini). Retrieval runs
-entirely locally, so its quality is measurable offline at zero cost — scored
-against a 62-question golden set with the expected source file labelled:
+The RAG pipeline splits into a **retrieval** half (over 15 knowledge files →
+110 section-level chunks) and a **generation** half (Gemini). Retrieval runs
+entirely locally — including the embeddings — so its quality is measurable
+offline at zero cost, scored against a 78-question golden set with the expected
+source file labelled.
 
-| Metric | Result | Meaning |
-|---|---|---|
-| recall@1 | **66.1%** | correct file ranked first (41/62) |
-| recall@3 | **88.7%** | correct file within the top 3 (55/62) |
-| MRR | **0.763** | mean reciprocal rank of the correct file |
+Three retrieval modes, selected with `RETRIEVAL_MODE`:
 
-Of the 21 questions that don't rank first, 10 land at rank 2 and 4 at rank 3 —
-still inside the top-4 window the model receives. The remaining **7 retrieve
-nothing relevant at all**, and those are the real gap: they are paraphrases whose
-wording shares no tokens with the source text. Two representative near-misses:
-"why did 60/40 struggle in 2022?" retrieves the 60/40
-strategy page above the market-history page, and "what does TLT hold?" retrieves
-the strategies page that discusses TLT's role above its asset-class entry. Since
-the assistant is given the top 4 chunks, a rank-2 hit still lands in context.
+| mode | recall@1 | recall@3 | MRR | total misses |
+|---|---|---|---|---|
+| `bm25` *(default — no services required)* | 67.9% | 88.5% | 0.776 | 9 |
+| `dense` (Milvus + MiniLM embeddings) | **84.6%** | 93.6% | **0.887** | 5 |
+| `hybrid` (both, fused by reciprocal rank) | 79.5% | **96.2%** | 0.870 | **3** |
 
-Reproduce with `task eval:retrieval`; per-question detail is written to
-`eval/retrieval_results.json`.
+BM25 alone leaves **9 of 78 questions with nothing relevant in the top 3** —
+paraphrases whose wording shares no tokens with the source text ("how much did I
+lose at the worst point?" vs a chunk that only says "drawdown"). Adding
+embeddings cuts that to **3**. Hybrid is deliberately chosen over `dense`
+despite a lower recall@1, because the model receives the top 4 passages, so the
+tail (recall@3) is what governs answer quality.
 
-**[docs/RETRIEVAL.md](docs/RETRIEVAL.md)** explains the pipeline in depth: the
-chunking strategy, the BM25 scoring formula with a worked example, why lexical
-retrieval was chosen over embeddings, and the known limitations.
+Dense retrieval is **optional at runtime**: if `sentence-transformers` is missing
+or Milvus is not running, retrieval logs a warning and falls back to BM25 rather
+than failing.
+
+```bash
+task vectors:up      # start Milvus (etcd + MinIO + Milvus, via docker compose)
+task vectors:build   # chunk, embed locally, and load into Milvus
+RETRIEVAL_MODE=hybrid task dev
+```
+
+Reproduce with `task eval:retrieval` and `task eval:modes`; per-question detail
+is written to `eval/retrieval_results.json` and `eval/mode_results.json`.
+
+**[docs/RETRIEVAL.md](docs/RETRIEVAL.md)** explains the pipeline in depth: the six
+chunking strategies and how they compare, near-duplicate removal, the BM25
+scoring formula with a worked example, the embedding and RRF fusion design, and
+the known limitations — including a chunker ranking that reversed once the corpus
+grew.
 
 ### Generation quality
 
@@ -239,14 +254,17 @@ task deploy:aws       # ECR push + App Runner create/redeploy
 | `main.py` | FastAPI app: API routes + static serving |
 | `data.py` | Price download, parquet cache, period returns |
 | `backtest.py` | Backtest engine and metrics |
-| `rag.py` | BM25 index + optional Gemini generation |
-| `knowledge/` | Finance knowledge base + Learn articles (9 markdown files) |
+| `rag.py` | Chunking, dedup, BM25/dense/hybrid retrieval + optional Gemini generation |
+| `embeddings.py` | Local sentence-transformer embeddings (no API key) |
+| `vectorstore.py` | Milvus dense index, degrades to BM25 when unavailable |
+| `knowledge/` | Finance knowledge base + Learn articles (15 markdown files) |
 | `static/` | Frontend (HTML/CSS/JS, no framework) |
 | `db.py` / `auth.py` | SQLite persistence + stdlib session auth |
 | `observability.py` | JSON logging, request IDs, metrics (stdlib only) |
-| `tests/` | 83 pytest tests, hermetic via synthetic fixtures |
-| `eval/` | RAGAS golden set + evaluation script |
+| `tests/` | 122 pytest tests, hermetic via synthetic fixtures |
+| `eval/` | 78-question golden set + retrieval, chunking, and mode benchmarks |
 | `scripts/refresh_market.py` | Hourly snapshot generator (CI cron) |
+| `scripts/build_vectors.py` | Chunk, embed, and load the knowledge base into Milvus |
 | `scripts/build_index_history.py` | Point-in-time S&P 500 membership reconstruction |
 | `deploy/` | App Runner script + deployment docs |
 | `docs/RETRIEVAL.md` | How the RAG retrieval pipeline works |
