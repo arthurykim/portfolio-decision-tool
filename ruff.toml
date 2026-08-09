@@ -1,0 +1,40 @@
+# Lint config — `task lint` locally, enforced by the `lint` job in CI.
+line-length = 110
+target-version = "py312"
+
+exclude = [".venv", ".venv-eval", "frontend", "cache", "data", "db"]
+
+[lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # import sorting
+    "UP",   # pyupgrade
+    "B",    # bugbear
+    "C4",   # comprehensions
+    "SIM",  # simplify
+]
+
+[lint.per-file-ignores]
+# load_env() must run before the modules that read os.environ are imported.
+"main.py" = ["E402"]
+"tests/conftest.py" = ["E402"]
+# Tests lean on asserts and long fixture literals; readability beats the rules.
+"tests/*" = ["E501"]
+
+[lint.flake8-bugbear]
+# FastAPI's dependency-injection idiom puts these calls in argument defaults.
+extend-immutable-calls = [
+    "fastapi.Depends",
+    "fastapi.Query",
+    "fastapi.Path",
+    "fastapi.Body",
+    "fastapi.Header",
+]
+
+[lint.isort]
+known-first-party = [
+    "auth", "backtest", "data", "db", "embeddings", "env",
+    "main", "observability", "rag", "vectorstore",
+]
