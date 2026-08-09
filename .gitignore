@@ -1,18 +1,38 @@
-.claude/
+# --- environments -----------------------------------------------------------
 .venv/
-cache/
-db/
+.venv-eval/
+frontend/node_modules/
+
+# --- editor / tooling state -------------------------------------------------
+.claude/
+.cursor/
+.DS_Store
+
+# --- caches -----------------------------------------------------------------
 __pycache__/
 *.pyc
-.DS_Store
-.env
-eval/results.json
-TODO.csv
-.venv-eval/
-.cursor/
-eval/retrieval_results.json
-frontend/node_modules/
+.pytest_cache/
+.ruff_cache/
+cache/
+
+# --- build output -----------------------------------------------------------
 frontend/dist/
+frontend/tsconfig.tsbuildinfo
+
+# --- local runtime data -----------------------------------------------------
+# The SQLite database and the .env file are per-developer, never shared.
+db/
+.env
+
+# --- generated eval artifacts -----------------------------------------------
+# Scores are reproducible by re-running the harness; committing them would make
+# every eval run a diff. `eval/history.jsonl` is the local trend log.
+eval/results.json
+eval/retrieval_results.json
 eval/history.jsonl
 eval/chunking_results.json
 eval/mode_results.json
+
+# --- personal scratch -------------------------------------------------------
+TODO.csv
+*.xlsx
