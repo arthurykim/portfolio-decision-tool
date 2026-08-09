@@ -1,7 +1,7 @@
 """Refresh price data and write data/market_snapshot.json (run hourly by CI)."""
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -15,7 +15,7 @@ def main() -> None:
     prices = load_universe(refresh=True)
     snapshot = {
         "as_of": prices.index[-1].date().isoformat(),
-        "generated_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "generated_utc": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "funds": [
             {k: f[k] for k in ("ticker", "name", "price", "returns")}
             for f in period_returns(prices)

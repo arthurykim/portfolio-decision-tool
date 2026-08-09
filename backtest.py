@@ -1,6 +1,7 @@
 """Backtest engine: run a portfolio allocation against historical prices."""
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Mapping
+
 import numpy as np
 import pandas as pd
 
@@ -136,7 +137,8 @@ def run_backtest(
 
 
 if __name__ == "__main__":
-    from data import annualized_inflation, load_universe, risk_free_rate as rf
+    from data import annualized_inflation, load_universe
+    from data import risk_free_rate as rf
 
     prices = load_universe()
 
