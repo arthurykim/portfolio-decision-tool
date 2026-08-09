@@ -54,14 +54,23 @@ def init_db() -> None:
 
 
 # ---------------------------------------------------------------- users
-def create_user(username: str, password_hash: str) -> dict:
+def create_user(username: str, password_hash: str, is_admin: bool = False) -> dict:
+    """Create a user. Admin is never granted implicitly — see auth.is_admin_username."""
     with connect() as conn:
-        first = conn.execute("SELECT COUNT(*) AS n FROM users").fetchone()["n"] == 0
         cur = conn.execute(
             "INSERT INTO users (username, password_hash, is_admin) VALUES (?, ?, ?)",
-            (username, password_hash, int(first)),
+            (username, password_hash, int(is_admin)),
         )
-        return {"id": cur.lastrowid, "username": username, "is_admin": first}
+        return {"id": cur.lastrowid, "username": username, "is_admin": is_admin}
+
+
+def set_admin(username: str, is_admin: bool = True) -> bool:
+    """Promote/demote by username. Returns False if no such user."""
+    with connect() as conn:
+        cur = conn.execute(
+            "UPDATE users SET is_admin = ? WHERE username = ?", (int(is_admin), username)
+        )
+        return cur.rowcount > 0
 
 
 def get_user_by_name(username: str) -> sqlite3.Row | None:

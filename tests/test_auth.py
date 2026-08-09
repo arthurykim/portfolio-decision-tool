@@ -1,6 +1,9 @@
 from fastapi.testclient import TestClient
 
-from auth import create_token, hash_password, verify_password, verify_token
+import db
+from auth import (
+    create_token, hash_password, is_admin_username, verify_password, verify_token,
+)
 from main import app
 
 
@@ -26,7 +29,7 @@ def test_register_login_me_logout():
     c = fresh_client()
     r = c.post("/api/auth/register", json={"username": "arthur", "password": "s3cret-pass"})
     assert r.status_code == 200
-    assert r.json()["is_admin"] is True  # first user is admin
+    assert r.json()["is_admin"] is True  # ADMIN_USERNAME=arthur, set in conftest
 
     assert c.get("/api/auth/me").json()["user"]["username"] == "arthur"
 
@@ -46,6 +49,43 @@ def test_second_user_is_not_admin_and_duplicates_rejected():
     assert r.json()["is_admin"] is False
     assert c.post("/api/auth/register",
                   json={"username": "GUEST", "password": "guest-pass-1"}).status_code == 409
+
+
+def test_registration_order_does_not_confer_admin():
+    """The land grab: whoever registered first used to own the site."""
+    c = fresh_client()
+    r = c.post("/api/auth/register", json={"username": "squatter", "password": "squat-pass-1"})
+    assert r.status_code == 200
+    assert r.json()["is_admin"] is False
+    assert c.get("/api/auth/me").json()["user"]["is_admin"] is False
+
+
+def test_is_admin_username(monkeypatch):
+    monkeypatch.setenv("ADMIN_USERNAME", "Arthur")
+    assert is_admin_username("arthur")      # case-insensitive both directions
+    assert is_admin_username("ARTHUR")
+    assert not is_admin_username("arthur2")
+    assert not is_admin_username("")
+
+    # Unset or blank: nobody is admin, so a fresh deploy has no land grab.
+    monkeypatch.setenv("ADMIN_USERNAME", "")
+    assert not is_admin_username("arthur")
+    monkeypatch.delenv("ADMIN_USERNAME", raising=False)
+    assert not is_admin_username("arthur")
+
+
+def test_make_admin_promotes_and_revokes():
+    c = fresh_client()
+    c.post("/api/auth/register", json={"username": "later", "password": "later-pass-1"})
+    assert c.get("/api/auth/me").json()["user"]["is_admin"] is False
+
+    assert db.set_admin("later") is True
+    assert c.get("/api/auth/me").json()["user"]["is_admin"] is True
+
+    assert db.set_admin("later", False) is True
+    assert c.get("/api/auth/me").json()["user"]["is_admin"] is False
+
+    assert db.set_admin("nobody-by-that-name") is False
 
 
 def test_login_rejects_bad_credentials():

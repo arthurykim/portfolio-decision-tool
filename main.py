@@ -19,7 +19,7 @@ from pydantic import BaseModel, Field, field_validator
 
 import db
 from auth import (
-    USERNAME_RE, clear_session_cookie, current_user, hash_password,
+    USERNAME_RE, clear_session_cookie, current_user, hash_password, is_admin_username,
     require_admin, require_user, set_session_cookie, verify_password,
 )
 from backtest import run_backtest
@@ -332,7 +332,11 @@ def register(creds: Credentials, response: Response):
         raise HTTPException(status_code=422, detail="Username: 3-32 letters, digits, . _ -")
     if db.get_user_by_name(creds.username):
         raise HTTPException(status_code=409, detail="Username already taken")
-    user = db.create_user(creds.username, hash_password(creds.password))
+    user = db.create_user(
+        creds.username,
+        hash_password(creds.password),
+        is_admin=is_admin_username(creds.username),
+    )
     set_session_cookie(response, user["id"])
     return {"username": user["username"], "is_admin": user["is_admin"]}
 

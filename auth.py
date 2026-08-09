@@ -22,6 +22,23 @@ COOKIE_SECURE = os.environ.get("COOKIE_SECURE", "").lower() in ("1", "true")
 
 USERNAME_RE = re.compile(r"^[a-zA-Z0-9_.-]{3,32}$")
 
+def is_admin_username(username: str) -> bool:
+    """True when this username is the configured site admin.
+
+    Previously the *first account to register* became admin, which on a public
+    deployment is a land grab: whoever finds the URL first owns the site. Admin
+    is now an explicit deploy-time decision via ADMIN_USERNAME.
+
+    With ADMIN_USERNAME unset nobody is granted admin at registration — a fresh
+    deployment simply has no admin until one is named, either by setting the
+    variable or by running scripts/make_admin.py.
+
+    Read at call time rather than import time so it stays testable and so a
+    restart is all that is needed to change it.
+    """
+    admin = os.environ.get("ADMIN_USERNAME", "").strip()
+    return bool(admin) and username.casefold() == admin.casefold()
+
 
 # ---------------------------------------------------------------- passwords
 def hash_password(password: str) -> str:

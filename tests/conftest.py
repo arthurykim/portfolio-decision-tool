@@ -4,6 +4,9 @@ import tempfile
 
 os.environ["DB_PATH"] = os.path.join(tempfile.mkdtemp(prefix="pdt-test-"), "app.db")
 
+# Admin is granted only to this username; registration order confers nothing.
+os.environ["ADMIN_USERNAME"] = "arthur"
+
 import numpy as np
 import pandas as pd
 
