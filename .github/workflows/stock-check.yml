@@ -1,0 +1,46 @@
+name: stock check
+
+# Run the per-stock backend tests (tests/test_stocks.py) for symbols you pick:
+# Actions tab -> "stock check" -> Run workflow. It answers "does NVDA work end
+# to end against real Yahoo data right now?" without a local checkout.
+#
+# Manual only, on purpose. The offline version of these tests already runs on
+# every PR inside ci.yml; a live Yahoo dependency there would let an upstream
+# rate limit turn unrelated PRs red.
+on:
+  workflow_dispatch:
+    inputs:
+      symbols:
+        description: "Symbols to test, space- or comma-separated (e.g. NVDA TSLA)"
+        required: true
+        default: "AAPL"
+      live:
+        description: "Use real Yahoo Finance data (unchecked: offline synthetic prices)"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  stocks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt -r requirements-dev.txt
+
+      # Inputs reach the shell through env, never inline ${{ }} in the script,
+      # so a symbols value cannot inject commands. test_stocks.py also rejects
+      # anything that is not shaped like a ticker symbol.
+      - name: Run per-stock tests
+        env:
+          SYMBOLS: ${{ inputs.symbols }}
+          LIVE: ${{ inputs.live && '--live' || '' }}
+        run: pytest tests/test_stocks.py -v -rs --stock "$SYMBOLS" $LIVE

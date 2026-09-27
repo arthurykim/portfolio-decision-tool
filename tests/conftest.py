@@ -29,3 +29,16 @@ def pytest_configure(config):
         daily = rng.normal(0.0003, 0.01, len(dates))
         prices = 100 * np.exp(np.cumsum(daily))
         pd.DataFrame({ticker: prices}, index=dates).to_parquet(cache_file)
+
+
+def pytest_addoption(parser):
+    """Options for tests/test_stocks.py — see the docstring there."""
+    group = parser.getgroup("stocks", "per-stock backend tests (tests/test_stocks.py)")
+    group.addoption(
+        "--stock", action="append", default=[], metavar="SYMBOLS",
+        help="stock symbol(s) to test, e.g. --stock NVDA or --stock 'NVDA TSLA'; repeatable",
+    )
+    group.addoption(
+        "--live", action="store_true",
+        help="fetch real data from Yahoo Finance instead of the offline stand-in",
+    )

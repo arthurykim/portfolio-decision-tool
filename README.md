@@ -153,7 +153,9 @@ Without a key the chat still answers from the knowledge base in extractive mode.
 
 ```bash
 task lint            # ruff over the whole repo
-task test            # 128 unit + API tests; hermetic (synthetic data if no cache)
+task test            # 196 unit + API tests; hermetic (synthetic data if no cache)
+task test:stock -- NVDA       # backend checks for one stock, offline
+task test:stock:live -- NVDA  # the same checks on real Yahoo Finance data
 task test:integration  # 9 Milvus integration tests (needs `task vectors:up`)
 task web:test        # React component tests
 task check           # lint + config validation + tests, all in one
@@ -281,7 +283,7 @@ Most folders have their own README with the detail; this table is the index.
 | `knowledge/` | Finance knowledge base + Learn articles (15 markdown files) — [README](knowledge/README.md) |
 | `static/` | The **deployed** frontend (HTML/CSS/JS, no framework), served by `main.py` |
 | `frontend/` | React + TypeScript + Vite client, deploys separately to Vercel — [README](frontend/README.md) |
-| `tests/` | 128 hermetic tests + 9 Milvus integration tests — [README](tests/README.md) |
+| `tests/` | 196 hermetic tests + 9 Milvus integration tests — [README](tests/README.md) |
 | `eval/` | 78-question golden set + retrieval, chunking, and mode benchmarks — [README](eval/README.md) |
 | `scripts/` | Maintenance jobs: market refresh, vector build, index history — [README](scripts/README.md) |
 | `deploy/` | App Runner script + deployment docs |

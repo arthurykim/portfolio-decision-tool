@@ -48,6 +48,16 @@ tasks:
     cmds:
       - '{{.PY}} -m pytest tests/integration -q -m integration'
 
+  test:stock:
+    desc: 'Backend tests for chosen stocks, offline: task test:stock -- NVDA TSLA'
+    cmds:
+      - '{{.PY}} -m pytest tests/test_stocks.py -v -rs {{if .CLI_ARGS}}--stock "{{.CLI_ARGS}}"{{end}}'
+
+  test:stock:live:
+    desc: 'Same checks on real Yahoo Finance data: task test:stock:live -- NVDA'
+    cmds:
+      - '{{.PY}} -m pytest tests/test_stocks.py -v -rs --live {{if .CLI_ARGS}}--stock "{{.CLI_ARGS}}"{{end}}'
+
   lint:
     desc: Lint the Python source (config in ruff.toml)
     cmds:
@@ -86,7 +96,7 @@ tasks:
       # a list that had already drifted (it was missing embeddings.py and
       # vectorstore.py). One less thing to remember to update.
       - task: lint
-      - "{{.PY}} -c \"import yaml; [yaml.safe_load(open(f)) for f in ['.github/workflows/ci.yml', '.github/workflows/integration.yml', '.github/workflows/market-refresh.yml', 'docker-compose.yml']]\""
+      - "{{.PY}} -c \"import yaml; [yaml.safe_load(open(f)) for f in ['.github/workflows/ci.yml', '.github/workflows/integration.yml', '.github/workflows/market-refresh.yml', '.github/workflows/stock-check.yml', 'docker-compose.yml']]\""
       - "{{.PY}} -m pytest tests/ -q"
 
   admin:
