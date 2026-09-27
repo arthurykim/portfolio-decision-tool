@@ -1,8 +1,4 @@
-"""Chunking strategies and deduplication.
-
-These are pure-Python and need no model download or vector store, so they run in
-the normal suite.
-"""
+"""Chunking strategies and deduplication."""
 import pytest
 
 from rag import (

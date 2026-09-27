@@ -29,7 +29,7 @@ def main():
         page = context.new_page()
 
         # --- Markets: dashboard hero (grid + price chart) ---
-        page.goto(f"{BASE}/#markets")
+        page.goto(f"{BASE}/markets")
         page.wait_for_selector("#fund-grid .fund-card, #fund-grid > *")
         page.wait_for_selector("#main-chart svg", timeout=15000)
         page.wait_for_timeout(600)
@@ -38,7 +38,7 @@ def main():
         )
 
         # --- Backtest: apply a preset and run it ---
-        page.goto(f"{BASE}/#backtest")
+        page.goto(f"{BASE}/backtest")
         page.wait_for_selector("#presets button")
         page.get_by_role("button", name="All Weather").click()
         page.get_by_role("button", name="Run backtest").click()
@@ -49,7 +49,7 @@ def main():
         )
 
         # --- Assistant: ask a question, wait for the grounded answer ---
-        page.goto(f"{BASE}/#assistant")
+        page.goto(f"{BASE}/assistant")
         page.wait_for_selector("#chat-input")
         page.fill("#chat-input", "What is max drawdown?")
         page.get_by_role("button", name="Send").click()
@@ -64,7 +64,7 @@ def main():
         )
 
         # --- Learn: topic tiles ---
-        page.goto(f"{BASE}/#learn")
+        page.goto(f"{BASE}/learn")
         page.wait_for_selector("#learn-tiles .learn-tile")
         page.wait_for_timeout(400)
         page.locator('div[data-view="learn"] .section').screenshot(

@@ -9,13 +9,13 @@ from pathlib import Path
 import pandas as pd
 import yfinance as yf
 
-CACHE_DIR = Path(__file__).parent / "cache"
+ROOT = Path(__file__).parent
+CACHE_DIR = ROOT / "cache"
 CACHE_DIR.mkdir(exist_ok=True)
 
 # Refresh cached history once it's older than this (seconds). Default: hourly.
 CACHE_MAX_AGE = int(os.environ.get("CACHE_MAX_AGE", 3600))
 
-# Tickers we support in v1. Keep this small and curated.
 TICKERS = {
     "SPY": "S&P 500 (US Large Cap)",
     "VOO": "S&P 500 (Vanguard)",
@@ -43,17 +43,41 @@ YF_SYMBOLS = {
 }
 
 
+class TTLCache:
+    """Thread-safe in-process cache whose entries expire after `ttl` seconds."""
+
+    def __init__(self, ttl: float) -> None:
+        self.ttl = ttl
+        self._data: dict = {}
+        self._lock = threading.Lock()
+
+    def get(self, key):
+        with self._lock:
+            hit = self._data.get(key)
+        if hit and time.time() - hit[0] < self.ttl:
+            return hit[1]
+        return None
+
+    def put(self, key, value) -> None:
+        with self._lock:
+            self._data[key] = (time.time(), value)
+
+
+def _download(symbol: str, **kwargs) -> pd.DataFrame:
+    df = yf.download(symbol, auto_adjust=True, progress=False, **kwargs)
+    # yfinance returns a (field, ticker) MultiIndex even for a single ticker.
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = df.columns.get_level_values(0)
+    return df
+
+
 def _cache_is_fresh(cache_file: Path) -> bool:
     return cache_file.exists() and (time.time() - cache_file.stat().st_mtime) < CACHE_MAX_AGE
 
 
 def _read_cache(cache_file: Path) -> pd.DataFrame | None:
-    """Read a cached parquet file, or None if it is missing or unreadable.
-
-    An interrupted write can leave a truncated/corrupt file behind. Treat that
-    as a cache miss (and delete it) so the caller re-fetches, rather than
-    letting the exception crash the request.
-    """
+    # An interrupted write can leave a corrupt file; treat it as a miss so the
+    # caller re-fetches instead of crashing the request.
     if not cache_file.exists():
         return None
     try:
@@ -64,7 +88,6 @@ def _read_cache(cache_file: Path) -> pd.DataFrame | None:
 
 
 def load_prices(ticker: str, refresh: bool = False) -> pd.DataFrame:
-    """Return a DataFrame with daily Close prices for `ticker`. Cached locally."""
     cache_file = CACHE_DIR / f"{ticker}.parquet"
     if _cache_is_fresh(cache_file) and not refresh:
         cached = _read_cache(cache_file)
@@ -72,8 +95,7 @@ def load_prices(ticker: str, refresh: bool = False) -> pd.DataFrame:
             return cached
 
     try:
-        symbol = YF_SYMBOLS.get(ticker, ticker)
-        df = yf.download(symbol, period="max", auto_adjust=True, progress=False)
+        df = _download(YF_SYMBOLS.get(ticker, ticker), period="max")
     except Exception:
         df = pd.DataFrame()
     if df.empty:
@@ -82,9 +104,6 @@ def load_prices(ticker: str, refresh: bool = False) -> pd.DataFrame:
         if cached is not None:
             return cached
         raise ValueError(f"No data returned for {ticker}")
-    # yfinance multi-index when one ticker — flatten
-    if isinstance(df.columns, pd.MultiIndex):
-        df.columns = df.columns.get_level_values(0)
     # Drop rows with no close: the current session's bar can come back empty,
     # which would otherwise make "as of" report a date that has no price.
     df = df[["Close"]].rename(columns={"Close": ticker}).dropna()
@@ -97,9 +116,8 @@ def load_prices(ticker: str, refresh: bool = False) -> pd.DataFrame:
 
 
 def load_universe(refresh: bool = False) -> pd.DataFrame:
-    """Load all supported tickers into one wide DataFrame indexed by date."""
     frames = [load_prices(t, refresh=refresh) for t in TICKERS]
-    return pd.concat(frames, axis=1).dropna(how="all")
+    return pd.concat(frames, axis=1, sort=True).dropna(how="all")
 
 
 # Trading-day offsets for each supported range (None = special-cased).
@@ -107,7 +125,6 @@ RANGES = {"1D": 1, "1W": 5, "1M": 21, "YTD": None, "1Y": 252, "5Y": 1260, "ALL":
 
 
 def period_returns(prices: pd.DataFrame) -> list[dict]:
-    """Per-ticker % return over each supported range, from daily closes."""
     prices = prices.dropna(how="all")
     last_idx = prices.index[-1]
     out = []
@@ -141,11 +158,11 @@ def period_returns(prices: pd.DataFrame) -> list[dict]:
 
 
 # ---------------------------------------------------------------- rates
-CPI_FILE = Path(__file__).parent / "data" / "cpi.json"
+CPI_FILE = ROOT / "data" / "cpi.json"
 RISK_FREE_TICKER = "BIL"  # 1-3 month T-bills stand in for the risk-free rate
 
 
-def _annualized(series: pd.Series) -> float:
+def annualized_return(series: pd.Series) -> float:
     years = (series.index[-1] - series.index[0]).days / 365.25
     if years <= 0 or series.iloc[0] <= 0:
         return 0.0
@@ -153,11 +170,7 @@ def _annualized(series: pd.Series) -> float:
 
 
 def risk_free_rate(prices: pd.DataFrame, start=None, end=None) -> float:
-    """Annualized T-bill return over the window, from BIL's own price history.
-
-    Returns 0.0 when the window predates BIL (2007) so callers degrade to the
-    old rf=0 behaviour rather than failing.
-    """
+    """Annualized BIL return over the window; 0.0 when the window predates BIL (2007)."""
     if RISK_FREE_TICKER not in prices.columns:
         return 0.0
     px = prices[RISK_FREE_TICKER].dropna()
@@ -165,7 +178,7 @@ def risk_free_rate(prices: pd.DataFrame, start=None, end=None) -> float:
         px = px[px.index >= pd.Timestamp(start)]
     if end is not None:
         px = px[px.index <= pd.Timestamp(end)]
-    return _annualized(px) if len(px) >= 2 else 0.0
+    return annualized_return(px) if len(px) >= 2 else 0.0
 
 
 @lru_cache(maxsize=1)
@@ -189,9 +202,8 @@ def _cpi_for_year(year: int) -> float:
 def annualized_inflation(start=None, end=None) -> tuple[float, bool]:
     """(annualized CPI growth over the window, whether any of it was estimated)."""
     cpi = _cpi()
-    today = pd.Timestamp.today()
     start_ts = pd.Timestamp(start) if start is not None else pd.Timestamp("1990-01-01")
-    end_ts = pd.Timestamp(end) if end is not None else today
+    end_ts = pd.Timestamp(end) if end is not None else pd.Timestamp.today()
     years = (end_ts - start_ts).days / 365.25
     if years <= 0:
         return 0.0, False
@@ -201,14 +213,12 @@ def annualized_inflation(start=None, end=None) -> tuple[float, bool]:
 
 
 # ---------------------------------------------------------------- stocks
-STATIC_DATA = Path(__file__).parent / "static" / "data"
-_stock_cache: dict[str, tuple[float, dict]] = {}
-_stock_lock = threading.Lock()
-STOCK_QUOTE_TTL = 600
+STATIC_DATA = ROOT / "static" / "data"
+INDEX_HISTORY = ROOT / "data" / "sp500_history.json"
 
 
+@lru_cache(maxsize=1)
 def stock_catalog() -> dict[str, dict]:
-    """All known stock symbols → {name, sector} from the catalog files."""
     catalog = {}
     for fname in ("sp500.json", "ipos.json"):
         payload = json.loads((STATIC_DATA / fname).read_text())
@@ -217,26 +227,24 @@ def stock_catalog() -> dict[str, dict]:
     return catalog
 
 
-INDEX_HISTORY = STATIC_DATA.parent.parent / "data" / "sp500_history.json"
+def is_known_symbol(symbol: str) -> bool:
+    return symbol in TICKERS or symbol in stock_catalog()
 
 
 @lru_cache(maxsize=1)
 def index_history() -> dict:
-    """Point-in-time S&P 500 membership, or {} if it hasn't been generated."""
     if not INDEX_HISTORY.exists():
         return {}
     return json.loads(INDEX_HISTORY.read_text())
 
 
-def members_on(as_of: str) -> list[str]:
-    """Who was in the index on `as_of`, by undoing every later change."""
-    hist = index_history()
-    if not hist:
-        return []
-    members = set(hist["current"])
-    for change in reversed(hist["changes"]):
+def replay_membership(as_of: str, current: list[str], changes: list[dict]) -> list[str]:
+    """Membership on `as_of`, by undoing every change made after that date."""
+    members = set(current)
+    for change in reversed(changes):          # newest first
         if change["date"] <= as_of:
             break
+        # Whoever was added after as_of wasn't a member; whoever was removed still was.
         if change["added"]:
             members.discard(change["added"])
         if change["removed"]:
@@ -244,8 +252,12 @@ def members_on(as_of: str) -> list[str]:
     return sorted(members)
 
 
+def members_on(as_of: str) -> list[str]:
+    hist = index_history()
+    return replay_membership(as_of, hist["current"], hist["changes"]) if hist else []
+
+
 def survivorship_gap(as_of: str) -> dict:
-    """How much of the `as_of` index is missing from today's list."""
     then, now = set(members_on(as_of)), set(index_history().get("current", []))
     if not then:
         return {}
@@ -260,8 +272,13 @@ def survivorship_gap(as_of: str) -> dict:
     }
 
 
+STOCK_QUOTE_TTL = 600
+_stock_cache: dict[str, tuple[float, dict]] = {}
+_stock_lock = threading.Lock()
+
+
 def get_stock_quotes(symbols: list[str]) -> list[dict]:
-    """Latest price + 1D change for catalog symbols. Batched, 10-min cache."""
+    """Latest price + 1D change. A failed refetch still serves the stale quote."""
     now = time.time()
     with _stock_lock:
         missing = [s for s in symbols if s not in _stock_cache or now - _stock_cache[s][0] > STOCK_QUOTE_TTL]
@@ -305,37 +322,24 @@ STOCK_RANGES = {
     "MAX": ("max", "1mo"),
 }
 
-_history_cache: dict[tuple[str, str], tuple[float, dict]] = {}
-_history_lock = threading.Lock()
-HISTORY_TTL = 300
+_history_cache = TTLCache(ttl=300)
 
 
 def stock_history(symbol: str, range_key: str = "1Y", refresh: bool = False) -> dict:
-    """OHLC history + summary stats for one symbol, fetched on demand.
-
-    Deliberately not persisted: storing 500 tickers x 8 ranges would be gigabytes
-    of data that goes stale hourly. Yahoo is the source of truth; we keep a short
-    in-process cache so repeated views and range flips stay fast.
-    """
+    """OHLC history + stats, fetched on demand. Not persisted: 500 tickers x 8
+    ranges would be gigabytes that go stale hourly."""
     symbol, range_key = symbol.upper(), range_key.upper()
     if range_key not in STOCK_RANGES:
         raise ValueError(f"Unknown range {range_key}")
 
     key = (symbol, range_key)
-    now = time.time()
-    if not refresh:
-        with _history_lock:
-            hit = _history_cache.get(key)
-            if hit and now - hit[0] < HISTORY_TTL:
-                return hit[1]
+    if not refresh and (hit := _history_cache.get(key)) is not None:
+        return hit
 
     period, interval = STOCK_RANGES[range_key]
-    df = yf.download(symbol, period=period, interval=interval,
-                     auto_adjust=True, progress=False)
+    df = _download(symbol, period=period, interval=interval)
     if df.empty:
         raise ValueError(f"No data returned for {symbol}")
-    if isinstance(df.columns, pd.MultiIndex):
-        df.columns = df.columns.get_level_values(0)
     df = df.dropna(subset=["Close"])
     if df.empty:
         raise ValueError(f"No usable closes for {symbol}")
@@ -364,29 +368,20 @@ def stock_history(symbol: str, range_key: str = "1Y", refresh: bool = False) -> 
             "volume": int(df["Volume"].sum()) if "Volume" in df else None,
             "points": len(closes),
         },
-        "fetched_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now)),
+        "fetched_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     }
-    with _history_lock:
-        _history_cache[key] = (now, payload)
+    _history_cache.put(key, payload)
     return payload
 
 
-_news_cache: dict[str, tuple[float, list]] = {}
-NEWS_TTL = 900
+_news_cache = TTLCache(ttl=900)
 
 
 def stock_news(symbol: str, limit: int = 8) -> list[dict]:
-    """Recent headlines for a symbol: title, publisher, timestamp, link.
-
-    Only metadata and the publisher's own link are stored or shown — never
-    article text — so readers land on the original source.
-    """
+    """Headline metadata and the publisher's own link only — never article text."""
     symbol = symbol.upper()
-    now = time.time()
-    with _history_lock:
-        hit = _news_cache.get(symbol)
-        if hit and now - hit[0] < NEWS_TTL:
-            return hit[1][:limit]
+    if (hit := _news_cache.get(symbol)) is not None:
+        return hit[:limit]
 
     items = []
     for raw in yf.Ticker(symbol).news or []:
@@ -403,26 +398,21 @@ def stock_news(symbol: str, limit: int = 8) -> list[dict]:
             "published": c.get("pubDate") or c.get("displayTime") or "",
             "url": url,
         })
-    with _history_lock:
-        _news_cache[symbol] = (now, items)
+    _news_cache.put(symbol, items)
     return items[:limit]
 
 
-_movers_cache: tuple[float, dict] | None = None
+_movers_cache = TTLCache(ttl=STOCK_QUOTE_TTL)
 
 
 def rank_movers(quotes: list[dict], top: int = 5) -> dict:
-    """Split quotes into the biggest 1D gainers and losers."""
     ranked = sorted(quotes, key=lambda q: q["change_pct"], reverse=True)
     return {"gainers": ranked[:top], "losers": ranked[-top:][::-1]}
 
 
 def get_movers(top: int = 5) -> dict:
-    """Top movers across the whole stock catalog, cached for STOCK_QUOTE_TTL."""
-    global _movers_cache
-    now = time.time()
-    if _movers_cache and now - _movers_cache[0] < STOCK_QUOTE_TTL:
-        return _movers_cache[1]
+    if (hit := _movers_cache.get(top)) is not None:
+        return hit
     catalog = stock_catalog()
     quotes = get_stock_quotes(list(catalog))
     if len(quotes) < 5:
@@ -430,7 +420,7 @@ def get_movers(top: int = 5) -> dict:
     for q in quotes:
         q.setdefault("name", catalog.get(q["symbol"], {}).get("name", ""))
     movers = rank_movers(quotes, top=top)
-    _movers_cache = (now, movers)
+    _movers_cache.put(top, movers)
     return movers
 
 

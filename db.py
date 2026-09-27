@@ -64,6 +64,23 @@ def create_user(username: str, password_hash: str) -> dict:
         return {"id": cur.lastrowid, "username": username, "is_admin": first}
 
 
+def upsert_admin(username: str, password_hash: str) -> bool:
+    """Create `username` as an admin, or reset their password and promote them.
+    Returns True if the user was created."""
+    with connect() as conn:
+        cur = conn.execute(
+            "UPDATE users SET password_hash = ?, is_admin = 1 WHERE username = ?",
+            (password_hash, username),
+        )
+        if cur.rowcount:
+            return False
+        conn.execute(
+            "INSERT INTO users (username, password_hash, is_admin) VALUES (?, ?, 1)",
+            (username, password_hash),
+        )
+        return True
+
+
 def get_user_by_name(username: str) -> sqlite3.Row | None:
     with connect() as conn:
         return conn.execute(

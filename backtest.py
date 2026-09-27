@@ -11,6 +11,7 @@ TRADING_DAYS_PER_YEAR = 252
 @dataclass
 class BacktestResult:
     equity_curve: pd.Series          # portfolio value over time, starts at 1.0
+    drawdown: pd.Series              # fall from the running peak, <= 0
     daily_returns: pd.Series         # weighted daily returns
     total_return: float              # final / initial - 1
     cagr: float                      # annualized nominal return
@@ -68,10 +69,9 @@ def run_backtest(
     risk_free_rate: float = 0.0,
     inflation_rate: float = 0.0,
 ) -> BacktestResult:
-    """Run a daily-rebalanced backtest of {ticker: weight} over [start, end].
+    """Daily-rebalanced backtest of {ticker: weight} over [start, end].
 
-    `risk_free_rate` and `inflation_rate` are annualized decimals for the same
-    window; the caller supplies them so this stays a pure function of its inputs.
+    The caller supplies the window's annualized rates so this stays pure.
     """
     weight_sum = sum(allocation.values())
     if not np.isclose(weight_sum, 1.0, atol=1e-3):
@@ -110,13 +110,13 @@ def run_backtest(
     sharpe = excess / vol if vol > 0 else 0.0
     sortino = excess / downside_vol if downside_vol > 0 else 0.0
 
-    running_max = equity.cummax()
-    drawdown = equity / running_max - 1
+    drawdown = equity / equity.cummax() - 1
     max_dd = drawdown.min()
     calmar = cagr / abs(max_dd) if max_dd < 0 else 0.0
 
     return BacktestResult(
         equity_curve=equity,
+        drawdown=drawdown,
         daily_returns=port_rets,
         total_return=float(total_return),
         cagr=float(cagr),

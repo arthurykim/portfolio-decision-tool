@@ -1,7 +1,4 @@
-"""Load key=value pairs from a local .env file. Stdlib only, no dependency.
-
-Real environment variables always win, so an exported value overrides the file.
-"""
+"""Load key=value pairs from a local .env file. Real environment variables win."""
 import os
 from pathlib import Path
 

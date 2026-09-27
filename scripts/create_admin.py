@@ -1,10 +1,6 @@
-"""Create or promote an admin user.
-
-Credentials come from the environment so nothing secret lands in the repo:
+"""Create or promote an admin user (an existing user's password is reset).
 
     ADMIN_USER=arthur.kim ADMIN_PASS='your-password' python scripts/create_admin.py
-
-If the user already exists, their password is reset and they are made admin.
 """
 import os
 import sys
@@ -31,20 +27,10 @@ def main() -> None:
         sys.exit("Password must be at least 8 characters")
 
     db.init_db()
-    existing = db.get_user_by_name(username)
-    with db.connect() as conn:
-        if existing:
-            conn.execute(
-                "UPDATE users SET password_hash = ?, is_admin = 1 WHERE id = ?",
-                (hash_password(password), existing["id"]),
-            )
-            print(f"Updated {username}: password reset, admin granted")
-        else:
-            conn.execute(
-                "INSERT INTO users (username, password_hash, is_admin) VALUES (?, ?, 1)",
-                (username, hash_password(password)),
-            )
-            print(f"Created admin user {username}")
+    if db.upsert_admin(username, hash_password(password)):
+        print(f"Created admin user {username}")
+    else:
+        print(f"Updated {username}: password reset, admin granted")
 
 
 if __name__ == "__main__":

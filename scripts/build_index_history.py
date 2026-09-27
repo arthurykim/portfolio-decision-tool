@@ -1,11 +1,7 @@
-"""Reconstruct point-in-time S&P 500 membership and write data/sp500_history.json.
+"""Write data/sp500_history.json: point-in-time S&P 500 membership.
 
-Today's constituent list only contains companies that survived to today, which
-biases any historical analysis upward (survivorship bias). Wikipedia publishes a
-dated log of index additions and removals; replaying that log backward from the
-current membership recovers who was actually in the index on a past date.
-
-    python scripts/build_index_history.py
+Today's list only holds survivors, so replaying Wikipedia's dated change log
+backward recovers who was actually in the index on past dates.
 """
 import io
 import json
@@ -17,6 +13,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import pandas as pd  # noqa: E402
 import requests  # noqa: E402
+
+from data import replay_membership  # noqa: E402
 
 WIKI = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
 OUT = Path(__file__).resolve().parents[1] / "data" / "sp500_history.json"
@@ -58,21 +56,6 @@ def fetch() -> tuple[list[str], list[dict]]:
     return current, changes
 
 
-def members_on(as_of: str, current: list[str], changes: list[dict]) -> list[str]:
-    """Membership on `as_of`, by undoing every change made after that date."""
-    members = set(current)
-    for change in reversed(changes):          # newest first
-        if change["date"] <= as_of:
-            break
-        # Undo: whoever was added after as_of wasn't a member; whoever was
-        # removed after as_of still was.
-        if change["added"]:
-            members.discard(change["added"])
-        if change["removed"]:
-            members.add(change["removed"])
-    return sorted(members)
-
-
 def main() -> None:
     current, changes = fetch()
     print(f"current members: {len(current)}")
@@ -83,7 +66,7 @@ def main() -> None:
         as_of = f"{year}-01-01"
         if as_of < changes[0]["date"]:
             continue
-        snapshots[as_of] = members_on(as_of, current, changes)
+        snapshots[as_of] = replay_membership(as_of, current, changes)
 
     departed = sorted({c["removed"] for c in changes if c["removed"]} - set(current))
 

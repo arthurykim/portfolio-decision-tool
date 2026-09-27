@@ -1,17 +1,7 @@
-"""Integration: the dense/hybrid path against a real Milvus server.
+"""End-to-end embeddings -> Milvus -> RRF fusion against a real server.
 
-Everything in tests/ runs in-process against stubs. This file is the opposite —
-it builds the actual knowledge base into a running Milvus, embeds with the real
-sentence-transformer model, and queries it. It is the only place the
-embeddings -> Milvus -> RRF fusion chain is exercised end to end.
-
-Not part of the default run. Needs a server:
-
-    task vectors:up          # etcd + MinIO + Milvus, ~1-2 min cold start
-    task test:integration
-
-Skips (rather than fails) when Milvus or sentence-transformers is absent, so a
-developer without Docker up gets a clean run.
+Needs `task vectors:up`, run with `task test:integration`; skips cleanly when
+Milvus or sentence-transformers is absent.
 """
 import os
 
@@ -34,7 +24,6 @@ def _milvus_reachable() -> bool:
 
 @pytest.fixture(scope="module", autouse=True)
 def milvus_collection():
-    """Build the real knowledge base into a throwaway collection, once."""
     if not embeddings.available():
         pytest.skip("sentence-transformers not installed")
 
@@ -97,11 +86,7 @@ def test_dense_search_returns_known_chunk_uids(milvus_collection):
 
 
 def test_dense_matches_a_paraphrase_bm25_cannot(milvus_collection):
-    """The reason dense retrieval exists: no shared vocabulary with the source.
-
-    "money you keep after the taxman" shares no content word with the
-    capital-gains material, so BM25 has nothing to score on.
-    """
+    # No content word is shared with the capital-gains material, so BM25 has nothing to score.
     query = "money you keep after the taxman takes a cut of investment profit"
     dense = vectorstore.search(query, k=3)
     assert dense
@@ -134,8 +119,6 @@ def test_dense_mode_end_to_end(milvus_collection):
 
 # --- degradation -----------------------------------------------------------
 def test_unreachable_milvus_falls_back_instead_of_raising(monkeypatch):
-    """The guarantee the whole design rests on, verified against a real socket:
-    a dead server yields no dense hits and BM25 still answers."""
     monkeypatch.setenv("MILVUS_URI", "http://127.0.0.1:19531")  # nothing listening
     vectorstore.reset()
 

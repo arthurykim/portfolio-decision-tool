@@ -1,9 +1,4 @@
-"""Structured logging, request correlation, and in-process metrics.
-
-Stdlib only — no agent, no sidecar. Logs go to stdout as JSON (which is what
-App Runner, Container Apps, and `docker logs` all expect), and metrics are
-exposed at /metrics in Prometheus text format so any scraper can read them.
-"""
+"""Stdlib-only JSON logging to stdout, request correlation, and Prometheus-format metrics."""
 import json
 import logging
 import os
@@ -84,7 +79,6 @@ class Metrics:
             self.hist_count[key] += 1
 
     def snapshot(self) -> dict:
-        """Plain dict of current values — used by tests and /metrics.json."""
         with self._lock:
             return {
                 "uptime_seconds": round(time.time() - self.started, 1),
@@ -106,7 +100,6 @@ class Metrics:
             }
 
     def prometheus(self) -> str:
-        """Prometheus text exposition format."""
         lines = [
             "# HELP app_uptime_seconds Seconds since process start",
             "# TYPE app_uptime_seconds gauge",

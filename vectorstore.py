@@ -1,17 +1,7 @@
-"""Milvus-backed dense index over the knowledge base.
+"""Optional Milvus dense index over the knowledge base (`task vectors:up && task vectors:build`).
 
-This is the *optional* half of retrieval. BM25 (`rag.BM25Index`) always works
-with no services running; Milvus adds synonym/paraphrase matching on top. Every
-entry point here degrades to "unavailable" rather than raising, so the app, the
-tests, and the offline benchmark keep working when Docker is not up.
-
-Start the service with:
-
-    docker compose up -d milvus
-
-then build the index with:
-
-    task vectors:build
+Every entry point degrades to "unavailable" rather than raising, so everything
+keeps working when Milvus is down.
 """
 import hashlib
 import logging
@@ -35,31 +25,22 @@ def uri() -> str:
 
 
 def collection_name() -> str:
-    """Collection is namespaced by model, because vectors from two different
-    models are not comparable and must never share a collection."""
+    # Namespaced by model: vectors from two models are not comparable.
     base = os.environ.get("MILVUS_COLLECTION") or DEFAULT_COLLECTION
     suffix = embeddings.model_name().rsplit("/", 1)[-1].replace("-", "_").replace(".", "_")
     return f"{base}_{suffix}"
 
 
 def chunk_uid(source: str, text: str) -> str:
-    """Stable identity for a chunk, used as the Milvus primary key.
-
-    Derived from content rather than position so that re-running the build
-    upserts in place instead of duplicating, and so that a dense hit can be
-    matched back to the in-memory chunk it came from during fusion.
-    """
+    # Content-derived, so rebuilds don't duplicate and hits map back to local chunks.
     digest = hashlib.sha1(f"{source}\x00{text}".encode()).hexdigest()
     return digest[:32]
 
 
 @lru_cache(maxsize=1)
 def _client():
-    """Connected MilvusClient, or None when the server is not reachable.
-
-    Cached so a down server costs one timeout per process rather than one per
-    query. Call `reset()` after starting Milvus in a long-lived process.
-    """
+    """MilvusClient, or None if unreachable. Cached so a down server costs one
+    timeout per process; call `reset()` after starting Milvus."""
     if not embeddings.available():
         logger.info("dense retrieval off: sentence-transformers is not installed")
         return None
@@ -75,12 +56,11 @@ def _client():
 
 
 def reset() -> None:
-    """Drop the cached client so the next call re-probes the server."""
     _client.cache_clear()
 
 
 def available() -> bool:
-    """True when Milvus is reachable AND the collection has been built."""
+    """Reachable and the collection has been built."""
     client = _client()
     if client is None:
         return False
@@ -91,11 +71,9 @@ def available() -> bool:
 
 
 def build(chunks, batch_size: int = 64) -> int:
-    """(Re)build the collection from `chunks`. Returns the number of vectors.
+    """Rebuild the collection from `chunks`; returns the vector count.
 
-    The collection is dropped first: chunk identities are content-derived, so a
-    changed chunking strategy would otherwise leave the old chunks behind as
-    orphans that still answer queries.
+    Dropped first, or chunks from a previous strategy linger and still answer queries.
     """
     client = _client()
     if client is None:
@@ -138,11 +116,7 @@ def build(chunks, batch_size: int = 64) -> int:
 
 
 def search(query: str, k: int = 10) -> list[tuple[str, float]]:
-    """Dense search. Returns [(chunk_uid, similarity)], best first.
-
-    Returns [] rather than raising when the store is unavailable — the caller
-    falls back to BM25 alone.
-    """
+    """[(chunk_uid, similarity)], best first; [] when the store is unavailable."""
     client = _client()
     if client is None:
         return []
@@ -165,7 +139,6 @@ def search(query: str, k: int = 10) -> list[tuple[str, float]]:
 
 
 def stats() -> dict:
-    """Small summary for the readiness probe and the CLI."""
     client = _client()
     if client is None:
         return {"available": False, "reason": "milvus unreachable", "uri": uri()}

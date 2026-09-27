@@ -8,11 +8,7 @@ from backtest import longest_underwater_days, run_backtest
 
 @pytest.fixture
 def prices():
-    """Three years of synthetic daily prices.
-
-    UP/FLAT/DOWN are monotonic so return maths is exactly predictable; NOISY has
-    real up and down days, which is what the downside/drawdown metrics need.
-    """
+    # UP/FLAT/DOWN are monotonic so the maths is exact; NOISY has real down days.
     dates = pd.bdate_range("2020-01-01", periods=756)
     up = 100 * (1.0004 ** np.arange(756))       # ~10%/yr steady riser
     flat = np.full(756, 100.0)

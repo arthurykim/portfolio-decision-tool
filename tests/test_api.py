@@ -136,6 +136,11 @@ def test_learn_index_and_articles():
     }
     assert all(a["title"] and a["teaser"] for a in articles)
 
+    etfs = client.get("/api/learn/what-are-etfs").json()
+    assert etfs["title"] == "What are ETFs?"
+    assert "exchange-traded fund" in etfs["content"]
+    assert client.get("/api/learn/nope").status_code == 404
+
 
 def test_every_learn_article_has_a_hero_image():
     # The Learn tiles render article["image"] unconditionally, so a missing file
@@ -146,11 +151,6 @@ def test_every_learn_article_has_a_hero_image():
         path = Path(__file__).resolve().parents[1] / "static" / article["image"].lstrip("/")
         assert path.exists(), f"missing hero image for {article['slug']}: {path}"
 
-    etfs = client.get("/api/learn/what-are-etfs").json()
-    assert etfs["title"] == "What are ETFs?"
-    assert "exchange-traded fund" in etfs["content"]
-    assert client.get("/api/learn/nope").status_code == 404
-
 
 def test_movers_ranks_gainers_and_losers(monkeypatch):
     fake = [
@@ -159,7 +159,7 @@ def test_movers_ranks_gainers_and_losers(monkeypatch):
                        ("DDD", -7.0), ("EEE", 2.0), ("FFF", 0.5), ("GGG", -1.0)]
     ]
     import data
-    monkeypatch.setattr(data, "_movers_cache", None)
+    monkeypatch.setattr(data, "_movers_cache", data.TTLCache(ttl=60))
     monkeypatch.setattr(data, "get_stock_quotes", lambda symbols: fake)
     m = client.get("/api/stocks/movers").json()
     assert [q["symbol"] for q in m["gainers"]] == ["AAA", "EEE", "CCC", "FFF", "GGG"]

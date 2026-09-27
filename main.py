@@ -1,8 +1,4 @@
-"""Portfolio Decision Tool — FastAPI backend.
-
-Serves the JSON API under /api/* and the static frontend at /.
-Run locally:  uvicorn main:app --reload
-"""
+"""Portfolio Decision Tool — FastAPI backend: JSON API under /api/*, static frontend at /."""
 import logging
 import time
 from pathlib import Path
@@ -35,9 +31,11 @@ from data import (
     STOCK_RANGES,
     TICKERS,
     annualized_inflation,
+    annualized_return,
     get_movers,
     get_stock_quotes,
     index_history,
+    is_known_symbol,
     load_universe,
     members_on,
     period_returns,
@@ -48,9 +46,9 @@ from data import (
     survivorship_gap,
 )
 from observability import metrics, new_request_id, request_id_var, setup_logging
+from rag import KNOWLEDGE_DIR, get_index
 from rag import _llm_available as llm_available
 from rag import answer as rag_answer
-from rag import get_index
 
 setup_logging()
 logger = logging.getLogger("app")
@@ -72,6 +70,36 @@ app.add_middleware(
 
 def _prices() -> pd.DataFrame:
     return load_universe()
+
+
+def _require_ticker(ticker: str) -> str:
+    ticker = ticker.upper()
+    if ticker not in TICKERS:
+        raise HTTPException(status_code=404, detail=f"Unknown ticker {ticker}")
+    return ticker
+
+
+def _require_symbol(symbol: str, status_code: int = 404) -> str:
+    symbol = symbol.strip().upper()
+    if not is_known_symbol(symbol):
+        raise HTTPException(status_code=status_code, detail=f"Unknown symbol {symbol}")
+    return symbol
+
+
+def _downsample(series: pd.Series) -> pd.Series:
+    # Weekly points keep long charts light without visibly changing their shape.
+    return series.resample("W-FRI").last().dropna() if len(series) > 1500 else series
+
+
+def _series(series: pd.Series, ndigits: int = 4) -> dict:
+    return {
+        "dates": [d.date().isoformat() for d in series.index],
+        "values": [round(float(v), ndigits) for v in series],
+    }
+
+
+def _user_payload(user) -> dict:
+    return {"username": user["username"], "is_admin": bool(user["is_admin"])}
 
 
 # ---------------------------------------------------------------------------
@@ -126,40 +154,40 @@ class AboutUpdate(BaseModel):
 # ---------------------------------------------------------------------------
 @app.get("/healthz")
 def healthz():
-    """Liveness: is the process up? Deliberately dependency-free so a slow
-    upstream never causes the orchestrator to restart a healthy container."""
+    # Liveness only: dependency-free, so a slow upstream never gets a healthy
+    # container restarted.
     return {"status": "ok"}
+
+
+def _probe(check) -> dict:
+    try:
+        return {"ok": True, **check()}
+    except Exception as exc:
+        return {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+
+
+def _check_prices() -> dict:
+    px = _prices()
+    return {"as_of": px.index[-1].date().isoformat(), "rows": len(px), "tickers": len(px.columns)}
+
+
+def _check_database() -> dict:
+    with db.connect() as conn:
+        conn.execute("SELECT 1").fetchone()
+    return {}
 
 
 @app.get("/readyz")
 def readyz(response: Response):
-    """Readiness: can this instance actually serve traffic? Checks each
-    dependency and reports which one is broken rather than a bare 503."""
-    checks: dict[str, dict] = {}
-
-    try:
-        px = _prices()
-        checks["prices"] = {"ok": True, "as_of": px.index[-1].date().isoformat(),
-                            "rows": len(px), "tickers": len(px.columns)}
-    except Exception as exc:
-        checks["prices"] = {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
-
-    try:
-        with db.connect() as conn:
-            conn.execute("SELECT 1").fetchone()
-        checks["database"] = {"ok": True}
-    except Exception as exc:
-        checks["database"] = {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
-
-    try:
-        checks["knowledge_base"] = {"ok": True, "chunks": len(get_index().chunks)}
-    except Exception as exc:
-        checks["knowledge_base"] = {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
-
-    # Informational, never fatal: the chat degrades to extractive without a key.
-    checks["llm"] = {"ok": True, "configured": llm_available(), "mode":
-                     "gemini" if llm_available() else "extractive"}
-
+    configured = llm_available()
+    checks = {
+        "prices": _probe(_check_prices),
+        "database": _probe(_check_database),
+        "knowledge_base": _probe(lambda: {"chunks": len(get_index().chunks)}),
+        # Informational, never fatal: the chat degrades to extractive without a key.
+        "llm": {"ok": True, "configured": configured,
+                "mode": "gemini" if configured else "extractive"},
+    }
     ready = all(c["ok"] for c in checks.values())
     if not ready:
         response.status_code = 503
@@ -168,13 +196,11 @@ def readyz(response: Response):
 
 @app.get("/metrics")
 def prometheus_metrics():
-    """Prometheus text exposition — scrape-compatible, no client library."""
     return Response(content=metrics.prometheus(), media_type="text/plain; version=0.0.4")
 
 
 @app.get("/metrics.json")
 def metrics_json():
-    """Same counters as /metrics, readable without a Prometheus server."""
     return metrics.snapshot()
 
 
@@ -185,7 +211,6 @@ def tickers():
 
 @app.get("/api/market")
 def market():
-    """Dashboard payload: per-ticker price + returns over every supported range."""
     px = _prices()
     return {
         "ranges": list(RANGES),
@@ -196,9 +221,7 @@ def market():
 
 @app.get("/api/prices/{ticker}")
 def prices(ticker: str, days: int = Query(365, ge=2, le=20000)):
-    ticker = ticker.upper()
-    if ticker not in TICKERS:
-        raise HTTPException(status_code=404, detail=f"Unknown ticker {ticker}")
+    ticker = _require_ticker(ticker)
     px = _prices()[ticker].dropna().tail(days)
     return {
         "ticker": ticker,
@@ -213,13 +236,7 @@ def growth(
     amount: float = Query(..., ge=100, le=100_000_000),
     years: int = Query(..., ge=1, le=30),
 ):
-    """Hypothetical lump-sum: what would $amount invested `years` ago be worth today?
-
-    Purely historical arithmetic on adjusted closes — educational, not advice.
-    """
-    ticker = ticker.upper()
-    if ticker not in TICKERS:
-        raise HTTPException(status_code=404, detail=f"Unknown ticker {ticker}")
+    ticker = _require_ticker(ticker)
     px = _prices()[ticker].dropna()
     start = px.index[-1] - pd.DateOffset(years=years)
     window = px[px.index >= start]
@@ -228,10 +245,7 @@ def growth(
             status_code=422,
             detail=f"{ticker} data only goes back to {px.index[0].date()}",
         )
-    curve = (window / window.iloc[0]) * amount
-    if len(curve) > 1500:
-        curve = curve.resample("W-FRI").last().dropna()
-    actual_years = (window.index[-1] - window.index[0]).days / 365.25
+    curve = _downsample((window / window.iloc[0]) * amount)
     final = float(curve.iloc[-1])
     return {
         "ticker": ticker,
@@ -241,20 +255,12 @@ def growth(
         "final_value": round(final, 2),
         "gain": round(final - amount, 2),
         "multiple": round(final / amount, 2),
-        "cagr": round(((final / amount) ** (1 / actual_years) - 1) * 100, 2) if actual_years > 0 else 0,
-        "curve": {
-            "dates": [d.date().isoformat() for d in curve.index],
-            "values": [round(float(v), 2) for v in curve],
-        },
+        "cagr": round(annualized_return(window) * 100, 2),
+        "curve": _series(curve, ndigits=2),
     }
 
 
 BENCHMARK = "SPY"
-
-
-def _downsample(series: pd.Series) -> pd.Series:
-    """Weekly points keep charts snappy without visibly changing the shape."""
-    return series.resample("W-FRI").last().dropna() if len(series) > 1500 else series
 
 
 def _metrics(r) -> dict:
@@ -288,9 +294,6 @@ def backtest(req: BacktestRequest):
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
-    equity = _downsample(result.equity_curve)
-    drawdown = equity / equity.cummax() - 1
-
     # Benchmark over the portfolio's actual (clipped) window, so it's comparable.
     benchmark = None
     if list(req.allocation) != [BENCHMARK]:
@@ -300,15 +303,11 @@ def backtest(req: BacktestRequest):
                 prices, {BENCHMARK: 1.0}, start=result.price_start, end=result.end,
                 risk_free_rate=rf, inflation_rate=inflation,
             )
-            bench_equity = _downsample(bench.equity_curve)
             benchmark = {
                 "ticker": BENCHMARK,
                 "name": TICKERS[BENCHMARK],
                 "metrics": _metrics(bench),
-                "equity_curve": {
-                    "dates": [d.date().isoformat() for d in bench_equity.index],
-                    "values": [round(float(v), 4) for v in bench_equity],
-                },
+                "equity_curve": _series(_downsample(bench.equity_curve)),
             }
         except ValueError:
             benchmark = None  # window predates SPY; skip rather than fail
@@ -317,14 +316,8 @@ def backtest(req: BacktestRequest):
         "metrics": _metrics(result),
         "benchmark": benchmark,
         "inflation_estimated": inflation_estimated,
-        "equity_curve": {
-            "dates": [d.date().isoformat() for d in equity.index],
-            "values": [round(float(v), 4) for v in equity],
-        },
-        "drawdown": {
-            "dates": [d.date().isoformat() for d in drawdown.index],
-            "values": [round(float(v), 4) for v in drawdown],
-        },
+        "equity_curve": _series(_downsample(result.equity_curve)),
+        "drawdown": _series(_downsample(result.drawdown)),
     }
 
 
@@ -355,7 +348,7 @@ def register(creds: Credentials, response: Response):
         raise HTTPException(status_code=409, detail="Username already taken")
     user = db.create_user(creds.username, hash_password(creds.password))
     set_session_cookie(response, user["id"])
-    return {"username": user["username"], "is_admin": user["is_admin"]}
+    return _user_payload(user)
 
 
 @app.post("/api/auth/login")
@@ -364,7 +357,7 @@ def login(creds: Credentials, response: Response):
     if row is None or not verify_password(creds.password, row["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid username or password")
     set_session_cookie(response, row["id"])
-    return {"username": row["username"], "is_admin": bool(row["is_admin"])}
+    return _user_payload(row)
 
 
 @app.post("/api/auth/logout")
@@ -375,7 +368,7 @@ def logout(response: Response):
 
 @app.get("/api/auth/me")
 def me(user: dict | None = Depends(current_user)):
-    return {"user": {"username": user["username"], "is_admin": user["is_admin"]} if user else None}
+    return {"user": _user_payload(user) if user else None}
 
 
 # ---------------------------------------------------------------------------
@@ -400,14 +393,7 @@ def stock_quotes(symbols: str = Query(..., max_length=400)):
 
 @app.get("/api/stocks/{symbol}/history")
 def stock_detail(symbol: str, range: str = Query("1Y"), refresh: bool = False):
-    """Price history and summary stats for one stock, fetched on demand.
-
-    Not stored: 500 symbols x 8 ranges would be gigabytes that go stale hourly.
-    """
-    symbol = symbol.upper()
-    catalog = stock_catalog()
-    if symbol not in catalog and symbol not in TICKERS:
-        raise HTTPException(status_code=404, detail=f"Unknown symbol {symbol}")
+    symbol = _require_symbol(symbol)
     if range.upper() not in STOCK_RANGES:
         raise HTTPException(
             status_code=422,
@@ -418,8 +404,9 @@ def stock_detail(symbol: str, range: str = Query("1Y"), refresh: bool = False):
     except ValueError as exc:
         metrics.inc("stock_history_errors_total", {"symbol": symbol})
         raise HTTPException(status_code=503, detail=str(exc)) from exc
-    payload["name"] = catalog.get(symbol, {}).get("name") or TICKERS.get(symbol, symbol)
-    payload["sector"] = catalog.get(symbol, {}).get("sector", "")
+    entry = stock_catalog().get(symbol, {})
+    payload["name"] = entry.get("name") or TICKERS.get(symbol, symbol)
+    payload["sector"] = entry.get("sector", "")
     payload["ranges"] = list(STOCK_RANGES)
     metrics.inc("stock_history_total", {"range": range.upper()})
     return payload
@@ -427,10 +414,7 @@ def stock_detail(symbol: str, range: str = Query("1Y"), refresh: bool = False):
 
 @app.get("/api/stocks/{symbol}/news")
 def stock_news_feed(symbol: str, limit: int = Query(8, ge=1, le=20)):
-    """Recent headlines. Metadata and publisher links only — no article text."""
-    symbol = symbol.upper()
-    if symbol not in stock_catalog() and symbol not in TICKERS:
-        raise HTTPException(status_code=404, detail=f"Unknown symbol {symbol}")
+    symbol = _require_symbol(symbol)
     try:
         items = stock_news(symbol, limit=limit)
     except Exception as exc:
@@ -443,7 +427,6 @@ def stock_news_feed(symbol: str, limit: int = Query(8, ge=1, le=20)):
 
 @app.get("/api/stocks/movers")
 def stock_movers():
-    """Top 5 gainers and losers across the S&P 500 catalog (1D change)."""
     try:
         return get_movers()
     except Exception as exc:
@@ -453,7 +436,6 @@ def stock_movers():
 
 @app.get("/api/index-history")
 def index_history_summary(as_of: str = Query("2010-01-01", pattern=r"^\d{4}-\d{2}-\d{2}$")):
-    """Point-in-time S&P 500 membership and the survivorship gap vs today."""
     hist = index_history()
     if not hist:
         raise HTTPException(
@@ -483,9 +465,7 @@ def watchlist(user: dict = Depends(require_user)):
 
 @app.post("/api/watchlist")
 def pin(req: PinRequest, user: dict = Depends(require_user)):
-    symbol = req.symbol.strip().upper()
-    if symbol not in stock_catalog() and symbol not in TICKERS:
-        raise HTTPException(status_code=422, detail=f"Unknown symbol {symbol}")
+    symbol = _require_symbol(req.symbol, status_code=422)
     if len(db.get_watchlist(user["id"])) >= 30:
         raise HTTPException(status_code=422, detail="Watchlist is limited to 30 symbols")
     db.add_to_watchlist(user["id"], symbol)
@@ -501,23 +481,23 @@ def unpin(symbol: str, user: dict = Depends(require_user)):
 # ---------------------------------------------------------------------------
 # Learn articles
 # ---------------------------------------------------------------------------
-KNOWLEDGE_DIR = Path(__file__).parent / "knowledge"
-LEARN_ARTICLES = {
-    "what-are-etfs": "what-are-etfs.md",
-    "what-are-index-funds": "what-are-index-funds.md",
-    "retirement-accounts": "retirement-accounts.md",
-    "taxable-vs-tax-advantaged": "taxable-vs-tax-advantaged.md",
-    "hysa-vs-checking": "hysa-vs-checking.md",
-    "money-basics": "money-basics.md",
-    "what-is-trading": "what-is-trading.md",
-    "how-leverage-works": "how-leverage-works.md",
-    "capital-gains-and-taxes": "capital-gains-and-taxes.md",
-    "odds-and-expected-value": "odds-and-expected-value.md",
-}
+# Each slug is served from knowledge/<slug>.md.
+LEARN_ARTICLES = (
+    "what-are-etfs",
+    "what-are-index-funds",
+    "retirement-accounts",
+    "taxable-vs-tax-advantaged",
+    "hysa-vs-checking",
+    "money-basics",
+    "what-is-trading",
+    "how-leverage-works",
+    "capital-gains-and-taxes",
+    "odds-and-expected-value",
+)
 
 
 def _article_meta(slug: str) -> dict:
-    text = (KNOWLEDGE_DIR / LEARN_ARTICLES[slug]).read_text()
+    text = (KNOWLEDGE_DIR / f"{slug}.md").read_text()
     lines = text.strip().splitlines()
     title = lines[0].lstrip("# ").strip()
     body = "\n".join(lines[1:]).strip()
@@ -562,7 +542,6 @@ def update_about(req: AboutUpdate, user: dict = Depends(require_admin)):
 
 @app.middleware("http")
 async def observe(request, call_next):
-    """Correlate, time, and count every request."""
     request_id = request.headers.get("x-request-id") or new_request_id()
     token = request_id_var.set(request_id)
     started = time.perf_counter()
@@ -598,7 +577,7 @@ async def observe(request, call_next):
 
 @app.middleware("http")
 async def cache_headers(request, call_next):
-    """HTML is never cached (so updates land immediately); versioned assets are immutable."""
+    # HTML is never cached so deploys land immediately; ?v= assets are immutable.
     response = await call_next(request)
     content_type = response.headers.get("content-type", "")
     if "text/html" in content_type:

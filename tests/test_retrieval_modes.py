@@ -1,9 +1,4 @@
-"""Hybrid retrieval plumbing: mode selection, RRF fusion, and the guarantee
-that a missing/stopped Milvus degrades to BM25 instead of breaking the app.
-
-No Milvus and no model download: the vector store is stubbed, because what needs
-testing here is the fallback and fusion logic, not Milvus itself.
-"""
+"""Mode selection, RRF fusion, and BM25 fallback, against a stubbed vector store."""
 import pytest
 
 import rag
@@ -83,11 +78,6 @@ def test_dense_falls_back_to_bm25_when_milvus_is_down(monkeypatch):
     assert retrieve("what is max drawdown", k=2, mode="dense")
 
 
-def test_vectorstore_search_returns_empty_when_client_is_unavailable(monkeypatch):
-    monkeypatch.setattr(vectorstore, "_client", lambda: None)
-    assert vectorstore.search("anything") == []
-
-
 def test_vectorstore_reports_unavailable_rather_than_raising(monkeypatch):
     monkeypatch.setattr(vectorstore, "_client", lambda: None)
     assert vectorstore.available() is False
@@ -132,19 +122,3 @@ def test_hybrid_promotes_a_chunk_bm25_ranked_low(monkeypatch):
     assert underdog in fused
     assert fused.index(underdog) < lexical.index(underdog)
 
-
-# --- collection naming -----------------------------------------------------
-def test_collection_name_is_namespaced_by_model(monkeypatch):
-    monkeypatch.setenv("EMBED_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
-    small = vectorstore.collection_name()
-    monkeypatch.setenv("EMBED_MODEL", "sentence-transformers/all-mpnet-base-v2")
-    # Vectors from two models are not comparable and must not share a collection.
-    assert vectorstore.collection_name() != small
-
-
-def test_chunk_uid_is_stable_and_content_derived():
-    first = vectorstore.chunk_uid("a.md", "hello")
-    assert first == vectorstore.chunk_uid("a.md", "hello")
-    assert first != vectorstore.chunk_uid("a.md", "hello!")
-    assert first != vectorstore.chunk_uid("b.md", "hello")
-    assert len(first) == 32

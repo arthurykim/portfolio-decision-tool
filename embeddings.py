@@ -1,13 +1,7 @@
-"""Local sentence-transformer embeddings.
+"""Local sentence-transformer embeddings: on-device, no API key.
 
-Runs entirely on-device, so embedding a corpus or a query costs nothing and needs
-no API key — the same property that lets the retrieval benchmark run offline.
-The model (~90 MB) is downloaded once by HuggingFace on first use and cached
-under ~/.cache/huggingface.
-
-The import of `sentence_transformers` is deliberately deferred to first use: it
-pulls in torch, which is slow to import and is not needed by the BM25 path that
-the app defaults to.
+`sentence_transformers` (and torch) is imported on first use, since the default
+BM25 path never needs it.
 """
 import logging
 import os
@@ -30,12 +24,7 @@ def model_name() -> str:
 
 
 def dimension() -> int:
-    """Vector width for the configured model.
-
-    Known models are looked up from the table so the Milvus collection can be
-    created without paying to load torch; anything else falls back to asking the
-    loaded model itself.
-    """
+    # Known models skip loading torch just to size the Milvus collection.
     name = model_name()
     if name in DIMENSIONS:
         return DIMENSIONS[name]
@@ -52,11 +41,7 @@ def _model():
 
 
 def available() -> bool:
-    """Whether embeddings can be produced at all (is the library installed?).
-
-    Does not load the model — callers use this to decide whether to offer dense
-    retrieval before paying the import cost.
-    """
+    """Whether sentence-transformers is installed. Does not load the model."""
     try:
         import sentence_transformers  # noqa: F401
     except Exception:
@@ -65,8 +50,7 @@ def available() -> bool:
 
 
 def encode(texts: list[str], batch_size: int = 32) -> list[list[float]]:
-    """Embed a batch of documents. Vectors are L2-normalised, so Milvus inner
-    product is exactly cosine similarity."""
+    # L2-normalised, so Milvus inner product is exactly cosine similarity.
     if not texts:
         return []
     vectors = _model().encode(

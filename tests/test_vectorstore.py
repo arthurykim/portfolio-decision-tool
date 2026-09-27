@@ -1,12 +1,4 @@
-"""Vector store result parsing, against pymilvus-shaped hits.
-
-test_retrieval_modes.py stubs `vectorstore.search` wholesale, so it can prove
-the fusion and fallback logic but never sees how a real hit is unpacked. That
-gap let a KeyError ship: pymilvus resolves `hit[key]` against the returned
-entity, so `hit["id"]` fails on a collection whose primary field is named
-"uid". These tests stub one layer lower — at the client — to cover it without
-needing Milvus or a model download.
-"""
+"""Vector store unit tests, stubbed at the Milvus client with pymilvus-shaped hits."""
 import pytest
 
 import vectorstore
@@ -76,10 +68,11 @@ def test_search_swallows_client_errors(monkeypatch):
 
 def test_collection_name_is_namespaced_by_model(monkeypatch):
     monkeypatch.setenv("MILVUS_COLLECTION", "kb")
-    monkeypatch.setattr(
-        vectorstore.embeddings, "model_name", lambda: "sentence-transformers/all-MiniLM-L6-v2"
-    )
+    monkeypatch.setenv("EMBED_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
     assert vectorstore.collection_name() == "kb_all_MiniLM_L6_v2"
+    # Vectors from two models are not comparable and must not share a collection.
+    monkeypatch.setenv("EMBED_MODEL", "sentence-transformers/all-mpnet-base-v2")
+    assert vectorstore.collection_name() == "kb_all_mpnet_base_v2"
 
 
 def test_chunk_uid_is_stable_and_content_derived():

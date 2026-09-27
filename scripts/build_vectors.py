@@ -1,15 +1,7 @@
-"""Chunk the knowledge base, embed it, and load it into Milvus.
+"""Chunk, embed, and load the knowledge base into Milvus.
 
-Run after editing anything in knowledge/, or after changing CHUNK_STRATEGY or
-EMBED_MODEL — the collection is keyed by chunk content, so stale vectors would
-otherwise keep answering queries.
-
-    docker compose --profile vectors up -d      # start Milvus
-    task vectors:build
-
-Reads CHUNK_STRATEGY, EMBED_MODEL, and MILVUS_URI from the environment.
+Rerun after editing knowledge/ or changing CHUNK_STRATEGY / EMBED_MODEL.
 """
-import os
 import sys
 import time
 from pathlib import Path
@@ -22,11 +14,11 @@ load_env()
 
 import embeddings  # noqa: E402
 import vectorstore  # noqa: E402
-from rag import DEFAULT_CHUNKER, load_chunks  # noqa: E402
+from rag import chunk_strategy, load_chunks  # noqa: E402
 
 
 def main() -> None:
-    strategy = os.environ.get("CHUNK_STRATEGY") or DEFAULT_CHUNKER
+    strategy = chunk_strategy()
 
     raw = load_chunks(strategy, dedup=False)
     chunks = load_chunks(strategy)
