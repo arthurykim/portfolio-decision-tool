@@ -999,6 +999,8 @@ async function init() {
   api("/api/auth/me").then(async (r) => {
     state.user = r.user;
     renderAuthBox();
+    // /about may have rendered before this resolved, hiding Edit from an admin.
+    $("about-edit").hidden = !(r.user && r.user.is_admin);
     if (r.user) await refreshWatchlist();
   }).catch(renderAuthBox);
 
