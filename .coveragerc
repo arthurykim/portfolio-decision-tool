@@ -14,10 +14,12 @@ omit =
 [report]
 show_missing = true
 skip_covered = true
-# The floor sits just under the current figure so ordinary churn does not trip
-# it, while a real drop still does. Raise it when coverage rises — it is a
-# ratchet, not a target.
-fail_under = 83
+# Set against the CI figure (83.1%), not the local one (84.2%) — a developer
+# with a populated cache/ exercises more of data.py than CI's synthetic
+# fixtures do, so local always reads higher. One point of headroom keeps
+# ordinary churn from tripping it while a real drop still does. Raise it when
+# coverage rises — it is a ratchet, not a target.
+fail_under = 82
 exclude_also =
     if TYPE_CHECKING:
     raise NotImplementedError

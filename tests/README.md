@@ -62,9 +62,13 @@ because installing torch and downloading the model takes minutes.
 ## Coverage
 
 `task test:cov` reports coverage and enforces a floor set in `.coveragerc`
-(currently **83%**; the suite sits at ~84%). CI runs the same thing, so a change
+(currently **82%**; CI measures ~83%, local ~84%). CI runs the same thing, so a change
 that adds code without tests fails the `test` job rather than quietly eroding
 the suite.
+
+Local coverage reads about a point higher than CI: a developer with a populated
+`cache/` exercises more of `data.py` than CI's synthetic fixtures do. The floor
+is set against the **CI** figure, since that is the one that gates merges.
 
 The floor is a **ratchet, not a target** — when coverage rises, raise it. Do not
 lower it to make a PR pass; that is the failure mode it exists to prevent.
