@@ -143,7 +143,6 @@ export default function Chart({
   );
 }
 
-/** Tiny inline sparkline for cards. */
 export function Sparkline({ values, width = 90, height = 28 }: {
   values: number[]; width?: number; height?: number;
 }) {

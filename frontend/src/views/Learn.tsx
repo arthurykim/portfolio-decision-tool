@@ -12,11 +12,10 @@ const BROKERAGES = [
   ["Credit Karma", "https://www.creditkarma.com", "Free credit monitoring — a common first stop before investing.", "creditkarma.com"],
 ];
 
-export default function Learn({ slug, onOpen }: { slug: string | null; onOpen: (s: string | null) => void }) {
-  const [list, setList] = useState<LearnArticle[]>([]);
+export default function Learn({ articles, slug, onOpen }: {
+  articles: LearnArticle[]; slug: string | null; onOpen: (s: string | null) => void;
+}) {
   const [article, setArticle] = useState<LearnArticle | null>(null);
-
-  useEffect(() => { api<LearnArticle[]>("/api/learn").then(setList); }, []);
 
   useEffect(() => {
     if (!slug) { setArticle(null); return; }
@@ -50,7 +49,7 @@ export default function Learn({ slug, onOpen }: { slug: string | null; onOpen: (
     <section className="section">
       <div className="section-head"><h2>Learn</h2></div>
       <div className="learn-grid">
-        {list.map((a) => (
+        {articles.map((a) => (
           <button key={a.slug} type="button" className="learn-tile" onClick={() => onOpen(a.slug)}>
             <img className="tile-thumb" src={a.image} alt="" loading="lazy" />
             <h3>{a.title}</h3>

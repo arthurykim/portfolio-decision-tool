@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, type User } from "../lib/api";
+import { api, put, type User } from "../lib/api";
 import { renderMarkdown } from "../lib/format";
 
 export default function About({ user }: { user: User | null }) {
@@ -13,11 +13,7 @@ export default function About({ user }: { user: User | null }) {
 
   async function save() {
     try {
-      const r = await api<{ content: string }>("/api/about", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: draft }),
-      });
+      const r = await put<{ content: string }>("/api/about", { content: draft });
       setContent(r.content);
       setEditing(false);
     } catch (e) {

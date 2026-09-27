@@ -1,5 +1,13 @@
 export const pct = (x: number, dp = 1) => `${(x * 100).toFixed(dp)}%`;
 
+export const fmtPrice = (x: number) => `$${x.toFixed(2)}`;
+
+/** A percentage that is already x100, signed: "+1.23%" / "-4.56%". */
+export const fmtChange = (x: number) => `${x >= 0 ? "+" : ""}${x.toFixed(2)}%`;
+
+/** CSS class for a signed change. */
+export const trend = (x: number) => (x >= 0 ? "up" : "down");
+
 export const fmtMoney = (x: number) =>
   x.toLocaleString("en-US", { style: "currency", currency: "USD" });
 
@@ -14,7 +22,7 @@ export const fmtYears = (days: number) => {
   return years >= 1 ? `${years.toFixed(1)} years` : `${Math.round(days / 30.4)} months`;
 };
 
-/** Colored-initials avatar hue, derived from the ticker. No trademarked logos. */
+/** Colored-initials avatar hue — no trademarked logos. */
 export const avatarHue = (symbol: string) =>
   [...symbol].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 0);
 

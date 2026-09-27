@@ -33,7 +33,16 @@ async function api(path, opts) {
   return res.json();
 }
 
+const sendJson = (path, body, method = "POST") => api(path, {
+  method,
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify(body),
+});
+
 const fmtPct = (x, dp = 1) => `${(x * 100).toFixed(dp)}%`;
+const fmtPrice = (x) => `$${x.toFixed(2)}`;
+const fmtChange = (x) => `${x >= 0 ? "+" : ""}${x.toFixed(2)}%`;  // x is already x100
+const trend = (x) => (x >= 0 ? "up" : "down");
 const fmtMoney = (x) => x.toLocaleString("en-US", { style: "currency", currency: "USD" });
 const fmtMoneyCompact = (x) =>
   x.toLocaleString("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 });
@@ -136,23 +145,26 @@ function drawChart(containerId, dates, values, { color, area = false, fmt, fmtAx
   });
 }
 
-// ---------------------------------------------------------------- market dashboard
-function renderTabs(ranges) {
-  const tabs = $("range-tabs");
-  tabs.innerHTML = "";
-  for (const r of ranges) {
+function renderTabBar(container, options, active, onPick) {
+  container.innerHTML = "";
+  for (const o of options) {
     const b = document.createElement("button");
     b.type = "button";
-    b.className = "tab" + (r === state.range ? " active" : "");
-    b.textContent = r;
-    b.addEventListener("click", () => {
-      state.range = r;
-      renderTabs(ranges);
-      renderFundGrid();
-      renderMainChart();
-    });
-    tabs.appendChild(b);
+    b.className = "tab" + (o === active ? " active" : "");
+    b.textContent = o;
+    b.addEventListener("click", () => onPick(o));
+    container.appendChild(b);
   }
+}
+
+// ---------------------------------------------------------------- market dashboard
+function renderTabs(ranges) {
+  renderTabBar($("range-tabs"), ranges, state.range, (r) => {
+    state.range = r;
+    renderTabs(ranges);
+    renderFundGrid();
+    renderMainChart();
+  });
 }
 
 function renderFundGrid() {
@@ -160,16 +172,15 @@ function renderFundGrid() {
   grid.innerHTML = "";
   for (const f of state.funds) {
     const ret = f.returns[state.range];
-    const up = ret >= 0;
     const card = document.createElement("button");
     card.type = "button";
     card.className = "fund-card" + (f.ticker === state.selected ? " selected" : "");
     card.innerHTML =
       `<span class="tk">${f.ticker}</span>` +
-      `<span class="px">$${f.price.toFixed(2)}</span>` +
+      `<span class="px">${fmtPrice(f.price)}</span>` +
       `<span class="nm">${f.name}</span>` +
       `<span class="spark">${sparkline(f.spark)}</span>` +
-      `<span class="badge ${up ? "up" : "down"}">${up ? "+" : ""}${ret.toFixed(2)}%</span>`;
+      `<span class="badge ${trend(ret)}">${fmtChange(ret)}</span>`;
     card.addEventListener("click", () => {
       state.selected = f.ticker;
       renderFundGrid();
@@ -186,8 +197,8 @@ async function renderMainChart() {
   $("chart-name").textContent = fund.name;
   const ret = fund.returns[state.range];
   const el = $("chart-change");
-  el.textContent = `${ret >= 0 ? "+" : ""}${ret.toFixed(2)}% ${state.range}`;
-  el.className = "chart-change " + (ret >= 0 ? "up" : "down");
+  el.textContent = `${fmtChange(ret)} ${state.range}`;
+  el.className = "chart-change " + trend(ret);
 
   let days = RANGE_DAYS[state.range];
   if (state.range === "YTD") {
@@ -394,11 +405,7 @@ async function runBacktest() {
     if ($("start-date").value) body.start = $("start-date").value;
     if ($("end-date").value) body.end = $("end-date").value;
 
-    const r = await api("/api/backtest", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
+    const r = await sendJson("/api/backtest", body);
 
     $("empty-state").hidden = true;
     renderMetrics(r.metrics, r.benchmark);
@@ -408,7 +415,7 @@ async function runBacktest() {
     $("equity-legend").hidden = !r.benchmark;
     drawChart("equity-chart", r.equity_curve.dates, r.equity_curve.values, {
       color: cssVar("--series-1"),
-      fmt: (v) => `$${v.toFixed(2)}`,
+      fmt: fmtPrice,
       overlay: r.benchmark
         ? { values: r.benchmark.equity_curve.values, color: cssVar("--muted") }
         : null,
@@ -429,7 +436,6 @@ async function runBacktest() {
 // Kept in sync with APP_VIEWS in main.py.
 const VIEWS = ["markets", "stocks", "backtest", "learn", "assistant", "about"];
 
-/** Navigate to an in-app path, e.g. navigate("learn", "what-are-etfs"). */
 function navigate(view, arg) {
   const path = arg ? `/${view}/${arg}` : `/${view}`;
   if (path !== location.pathname) history.pushState({}, "", path);
@@ -506,11 +512,7 @@ async function submitAuth() {
   const errEl = $("auth-error");
   errEl.hidden = true;
   try {
-    const user = await api(`/api/auth/${authMode === "login" ? "login" : "register"}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
-    });
+    const user = await sendJson(`/api/auth/${authMode}`, { username, password });
     state.user = user;
     $("auth-modal").close();
     $("auth-password").value = "";
@@ -569,9 +571,8 @@ async function fetchQuotes(symbols) {
 function quoteCells(symbol) {
   const q = state.quotes[symbol];
   if (!q) return `<td class="num">—</td><td class="num">—</td>`;
-  const up = q.change_pct >= 0;
-  return `<td class="num">$${q.price.toFixed(2)}</td>` +
-    `<td class="num chg ${up ? "up" : "down"}">${up ? "+" : ""}${q.change_pct.toFixed(2)}%</td>`;
+  return `<td class="num">${fmtPrice(q.price)}</td>` +
+    `<td class="num chg ${trend(q.change_pct)}">${fmtChange(q.change_pct)}</td>`;
 }
 
 function pinButton(symbol) {
@@ -587,11 +588,7 @@ async function togglePin(symbol) {
   try {
     const r = pinned
       ? await api(`/api/watchlist/${symbol}`, { method: "DELETE" })
-      : await api("/api/watchlist", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ symbol }),
-        });
+      : await sendJson("/api/watchlist", { symbol });
     state.watchlist = r.symbols;
     renderWatchStrip();
     renderStockTable();
@@ -682,12 +679,11 @@ function renderStockTable() {
 
 function miniCard(symbol, name, sub, withUnpin) {
   const q = state.quotes[symbol];
-  const up = q && q.change_pct >= 0;
   return `<div class="mini-card">` +
     (withUnpin ? `<button class="unpin" data-symbol="${symbol}" title="Unpin ${symbol}">✕</button>` : "") +
     `${avatar(symbol)}<span class="tk">${symbol}</span><span class="nm">${name}</span>` +
-    (q ? `<div class="px">$${q.price.toFixed(2)}</div>` +
-         `<span class="chg ${up ? "up" : "down"}">${up ? "+" : ""}${q.change_pct.toFixed(2)}%</span>`
+    (q ? `<div class="px">${fmtPrice(q.price)}</div>` +
+         `<span class="chg ${trend(q.change_pct)}">${fmtChange(q.change_pct)}</span>`
        : `<div class="px">${sub}</div>`) +
     `</div>`;
 }
@@ -735,19 +731,6 @@ function avatar(symbol) {
 // ---------------------------------------------------------------- stock detail
 const detail = { symbol: null, range: "1Y" };
 
-function renderDetailRanges(ranges) {
-  const tabs = $("detail-ranges");
-  tabs.innerHTML = "";
-  for (const r of ranges) {
-    const b = document.createElement("button");
-    b.type = "button";
-    b.className = "tab" + (r === detail.range ? " active" : "");
-    b.textContent = r;
-    b.addEventListener("click", () => openStock(detail.symbol, r));
-    tabs.appendChild(b);
-  }
-}
-
 async function openStock(symbol, range = detail.range, refresh = false) {
   detail.symbol = symbol;
   detail.range = range;
@@ -761,16 +744,16 @@ async function openStock(symbol, range = detail.range, refresh = false) {
     const q = `range=${range}${refresh ? "&refresh=true" : ""}`;
     const d = await api(`/api/stocks/${symbol}/history?${q}`);
     detail.range = d.range;
-    renderDetailRanges(d.ranges);
+    renderTabBar($("detail-ranges"), d.ranges, detail.range, (r) => openStock(detail.symbol, r));
 
     $("detail-name").textContent = d.name;
     $("detail-sector").textContent = d.sector || "";
     $("detail-sector").hidden = !d.sector;
-    $("detail-last").textContent = `$${d.stats.price.toFixed(2)}`;
+    $("detail-last").textContent = fmtPrice(d.stats.price);
 
     const up = d.stats.change >= 0;
     const chg = $("detail-change");
-    chg.className = "detail-change " + (up ? "up" : "down");
+    chg.className = "detail-change " + trend(d.stats.change);
     chg.textContent =
       `${up ? "+" : ""}${d.stats.change.toFixed(2)} (${up ? "+" : ""}${d.stats.change_pct.toFixed(2)}%) ${d.range}`;
     $("detail-fetched").textContent = `as of ${d.fetched_at.replace("T", " ")} · ${d.interval} bars`;
@@ -779,14 +762,14 @@ async function openStock(symbol, range = detail.range, refresh = false) {
     drawChart("detail-chart", labels, d.points.map((p) => p.c), {
       color: cssVar(up ? "--delta-up" : "--series-8"),
       area: true,
-      fmt: (v) => `$${v.toFixed(2)}`,
+      fmt: fmtPrice,
     });
 
     const vol = d.stats.volume;
     $("detail-stats").innerHTML = [
-      ["Open", `$${d.stats.open.toFixed(2)}`],
-      ["High", `$${d.stats.high.toFixed(2)}`],
-      ["Low", `$${d.stats.low.toFixed(2)}`],
+      ["Open", fmtPrice(d.stats.open)],
+      ["High", fmtPrice(d.stats.high)],
+      ["Low", fmtPrice(d.stats.low)],
       ["Volume", vol ? vol.toLocaleString("en-US", { notation: "compact" }) : "—"],
       ["Points", d.stats.points],
     ].map(([k, v]) => `<div class="s"><span class="k">${k}</span><span class="v">${v}</span></div>`).join("");
@@ -797,23 +780,23 @@ async function openStock(symbol, range = detail.range, refresh = false) {
 }
 
 async function loadStockNews(symbol) {
-  const box = $("detail-news");
-  box.innerHTML = `<h4>Latest news</h4><p class="fineprint">Loading…</p>`;
+  const show = (html) => { $("detail-news").innerHTML = `<h4>Latest news</h4>${html}`; };
+  show(`<p class="fineprint">Loading…</p>`);
   try {
     const r = await api(`/api/stocks/${symbol}/news?limit=6`);
     if (!r.items.length) {
-      box.innerHTML = `<h4>Latest news</h4><p class="fineprint">No recent headlines.</p>`;
+      show(`<p class="fineprint">No recent headlines.</p>`);
       return;
     }
-    box.innerHTML = `<h4>Latest news</h4>` + r.items.map((n) => {
+    show(r.items.map((n) => {
       const when = n.published ? new Date(n.published).toLocaleDateString() : "";
       return `<a class="news-item" href="${n.url}" target="_blank" rel="noopener noreferrer">` +
         `<span class="news-title">${n.title}</span>` +
         `<span class="news-meta">${n.publisher}${when ? " · " + when : ""}</span></a>`;
     }).join("") +
-    `<p class="fineprint">Headlines and links via Yahoo Finance; articles open at the publisher.</p>`;
+    `<p class="fineprint">Headlines and links via Yahoo Finance; articles open at the publisher.</p>`);
   } catch {
-    box.innerHTML = `<h4>Latest news</h4><p class="fineprint">News unavailable right now.</p>`;
+    show(`<p class="fineprint">News unavailable right now.</p>`);
   }
 }
 
@@ -826,12 +809,10 @@ function initStockDetail() {
 
 // ---------------------------------------------------------------- movers
 async function loadMovers() {
-  const row = (q) => {
-    const up = q.change_pct >= 0;
-    return `<div class="mover-row" data-symbol="${q.symbol}">${avatar(q.symbol)}<span class="sym">${q.symbol}</span>` +
-      `<span class="nm">${q.name}</span><span class="px">$${q.price.toFixed(2)}</span>` +
-      `<span class="badge ${up ? "up" : "down"}">${up ? "+" : ""}${q.change_pct.toFixed(2)}%</span></div>`;
-  };
+  const row = (q) =>
+    `<div class="mover-row" data-symbol="${q.symbol}">${avatar(q.symbol)}<span class="sym">${q.symbol}</span>` +
+    `<span class="nm">${q.name}</span><span class="px">${fmtPrice(q.price)}</span>` +
+    `<span class="badge ${trend(q.change_pct)}">${fmtChange(q.change_pct)}</span></div>`;
   try {
     const m = await api("/api/stocks/movers");
     $("movers-up").innerHTML = m.gainers.map(row).join("");
@@ -939,11 +920,7 @@ async function loadAbout() {
   });
   $("about-save").addEventListener("click", async () => {
     try {
-      const r2 = await api("/api/about", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: $("about-textarea").value }),
-      });
+      const r2 = await sendJson("/api/about", { content: $("about-textarea").value }, "PUT");
       $("about-content").innerHTML = renderMarkdown(r2.content);
       $("about-editor").hidden = true;
       $("about-content").hidden = false;
@@ -983,11 +960,7 @@ async function sendChat(e) {
   const pending = addChatMsg("assistant", "Thinking…");
   pending.classList.add("pending");
   try {
-    const r = await api("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, history: chatHistory.slice(-6) }),
-    });
+    const r = await sendJson("/api/chat", { message, history: chatHistory.slice(-6) });
     pending.remove();
     addChatMsg("assistant", r.answer, r.sources);
     chatHistory.push({ role: "user", content: message },

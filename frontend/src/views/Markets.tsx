@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import Chart, { Sparkline } from "../components/Chart";
+import Tabs from "../components/Tabs";
+import Tile from "../components/Tile";
 import { api, type Fund, type GrowthResult, type MarketPayload, type Movers } from "../lib/api";
-import { fmtMoney, fmtMoneyCompact, pct } from "../lib/format";
+import { fmtChange, fmtMoney, fmtMoneyCompact, fmtPrice, trend } from "../lib/format";
 
 const RANGE_DAYS: Record<string, number> = {
   "1D": 5, "1W": 7, "1M": 21, YTD: 0, "1Y": 252, "5Y": 1260, ALL: 20000,
@@ -43,41 +45,24 @@ export default function Markets({ onPickSymbol }: { onPickSymbol: (s: string) =>
       <section className="section">
         <div className="section-head">
           <h2>Markets</h2>
-          <div className="tabs" role="tablist">
-            {market.ranges.map((r) => (
-              <button
-                key={r}
-                type="button"
-                className={`tab${r === range ? " active" : ""}`}
-                onClick={() => setRange(r)}
-              >
-                {r}
-              </button>
-            ))}
-          </div>
+          <Tabs options={market.ranges} value={range} onChange={setRange} />
         </div>
 
         <div className="fund-grid">
-          {market.funds.map((f: Fund) => {
-            const r = f.returns[range];
-            const up = r >= 0;
-            return (
-              <button
-                key={f.ticker}
-                type="button"
-                className={`fund-card${f.ticker === selected ? " selected" : ""}`}
-                onClick={() => setSelected(f.ticker)}
-              >
-                <span className="tk">{f.ticker}</span>
-                <span className="px">${f.price.toFixed(2)}</span>
-                <span className="nm">{f.name}</span>
-                <span className="spark"><Sparkline values={f.spark} /></span>
-                <span className={`badge ${up ? "up" : "down"}`}>
-                  {up ? "+" : ""}{r.toFixed(2)}%
-                </span>
-              </button>
-            );
-          })}
+          {market.funds.map((f: Fund) => (
+            <button
+              key={f.ticker}
+              type="button"
+              className={`fund-card${f.ticker === selected ? " selected" : ""}`}
+              onClick={() => setSelected(f.ticker)}
+            >
+              <span className="tk">{f.ticker}</span>
+              <span className="px">{fmtPrice(f.price)}</span>
+              <span className="nm">{f.name}</span>
+              <span className="spark"><Sparkline values={f.spark} /></span>
+              <span className={`badge ${trend(f.returns[range])}`}>{fmtChange(f.returns[range])}</span>
+            </button>
+          ))}
         </div>
 
         <div className="panel chart-panel">
@@ -86,9 +71,7 @@ export default function Markets({ onPickSymbol }: { onPickSymbol: (s: string) =>
               <span className="chart-ticker">{selected}</span>
               <span className="chart-name">{fund?.name}</span>
             </div>
-            <span className={`chart-change ${ret >= 0 ? "up" : "down"}`}>
-              {ret >= 0 ? "+" : ""}{ret.toFixed(2)}% {range}
-            </span>
+            <span className={`chart-change ${trend(ret)}`}>{fmtChange(ret)} {range}</span>
           </div>
           {series ? (
             <Chart
@@ -96,7 +79,7 @@ export default function Markets({ onPickSymbol }: { onPickSymbol: (s: string) =>
               values={series.prices}
               color="var(--series-1)"
               area
-              fmt={(v) => `$${v.toFixed(2)}`}
+              fmt={fmtPrice}
               fmtAxis={(v) => `$${v.toFixed(0)}`}
             />
           ) : (
@@ -131,24 +114,19 @@ function MoverList({ title, items, onPick }: {
         {!items ? (
           <span className="fineprint">Loading…</span>
         ) : (
-          items.map((q) => {
-            const up = q.change_pct >= 0;
-            return (
-              <div
-                key={q.symbol}
-                className="mover-row"
-                style={{ cursor: "pointer" }}
-                onClick={() => onPick(q.symbol)}
-              >
-                <span className="sym">{q.symbol}</span>
-                <span className="nm">{q.name}</span>
-                <span className="px">${q.price.toFixed(2)}</span>
-                <span className={`badge ${up ? "up" : "down"}`}>
-                  {up ? "+" : ""}{q.change_pct.toFixed(2)}%
-                </span>
-              </div>
-            );
-          })
+          items.map((q) => (
+            <div
+              key={q.symbol}
+              className="mover-row"
+              style={{ cursor: "pointer" }}
+              onClick={() => onPick(q.symbol)}
+            >
+              <span className="sym">{q.symbol}</span>
+              <span className="nm">{q.name}</span>
+              <span className="px">{fmtPrice(q.price)}</span>
+              <span className={`badge ${trend(q.change_pct)}`}>{fmtChange(q.change_pct)}</span>
+            </div>
+          ))
         )}
       </div>
     </div>
@@ -249,17 +227,3 @@ function WhatIf({ funds }: { funds: Fund[] }) {
     </section>
   );
 }
-
-export function Tile({ label, value, sub, cls = "" }: {
-  label: string; value: string | number; sub?: string; cls?: string;
-}) {
-  return (
-    <div className="tile">
-      <div className="label">{label}</div>
-      <div className={`value ${cls}`}>{value}</div>
-      {sub && <div className="sub">{sub}</div>}
-    </div>
-  );
-}
-
-export { pct };

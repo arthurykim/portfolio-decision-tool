@@ -112,7 +112,9 @@ export default function App() {
           />
         )}
         {view === "backtest" && <Backtest />}
-        {view === "learn" && <Learn slug={arg} onOpen={(s) => go(s ? `learn/${s}` : "learn")} />}
+        {view === "learn" && (
+          <Learn articles={articles} slug={arg} onOpen={(s) => go(s ? `learn/${s}` : "learn")} />
+        )}
         {view === "assistant" && <Assistant />}
         {view === "about" && <About user={user} />}
 

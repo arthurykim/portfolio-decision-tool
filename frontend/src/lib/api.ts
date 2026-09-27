@@ -25,12 +25,15 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-export const post = <T,>(path: string, body: unknown) =>
+const sendJson = (method: string) => <T,>(path: string, body: unknown) =>
   api<T>(path, {
-    method: "POST",
+    method,
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
+
+export const post = sendJson("POST");
+export const put = sendJson("PUT");
 
 // ---------------------------------------------------------------- types
 export interface Fund {

@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import Chart from "../components/Chart";
+import Tile from "../components/Tile";
 import { api, post, type BacktestResult } from "../lib/api";
 import { fmtMoney, fmtYears, pct } from "../lib/format";
-import { Tile } from "./Markets";
 
 const PRESETS: Record<string, Record<string, number>> = {
   "60/40": { SPY: 60, AGG: 40 },

@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Chart from "../components/Chart";
+import Tabs from "../components/Tabs";
 import {
-  api, post, type CatalogEntry, type NewsItem, type Quote, type StockHistory,
+  api, post, type CatalogEntry, type NewsItem, type Quote, type StockHistory, type User,
 } from "../lib/api";
-import { avatarHue } from "../lib/format";
+import { avatarHue, fmtChange, fmtPrice, trend } from "../lib/format";
 
 const PAGE_SIZE = 50;
 
 interface Props {
-  user: { username: string; is_admin: boolean } | null;
+  user: User | null;
   watchlist: string[];
   setWatchlist: (s: string[]) => void;
   requireSignIn: () => void;
@@ -143,7 +144,6 @@ export default function Stocks({
           <tbody>
             {shown.map((s) => {
               const q = quotes[s.symbol];
-              const up = (q?.change_pct ?? 0) >= 0;
               return (
                 <tr key={s.symbol} onClick={() => setDetail(s.symbol)}>
                   <td>
@@ -158,9 +158,9 @@ export default function Stocks({
                   <td className="sym">{s.symbol}</td>
                   <td>{s.name}</td>
                   <td className="sector">{s.sector}</td>
-                  <td className="num">{q ? `$${q.price.toFixed(2)}` : "—"}</td>
-                  <td className={`num chg ${up ? "up" : "down"}`}>
-                    {q ? `${up ? "+" : ""}${q.change_pct.toFixed(2)}%` : "—"}
+                  <td className="num">{q ? fmtPrice(q.price) : "—"}</td>
+                  <td className={`num chg ${trend(q?.change_pct ?? 0)}`}>
+                    {q ? fmtChange(q.change_pct) : "—"}
                   </td>
                 </tr>
               );
@@ -193,7 +193,6 @@ function MiniCard({ symbol, name, quote, sub, onOpen, onUnpin }: {
   symbol: string; name: string; quote?: Quote; sub?: string;
   onOpen: () => void; onUnpin?: () => void;
 }) {
-  const up = (quote?.change_pct ?? 0) >= 0;
   return (
     <div className="mini-card" style={{ cursor: "pointer" }} onClick={onOpen}>
       {onUnpin && (
@@ -211,10 +210,8 @@ function MiniCard({ symbol, name, quote, sub, onOpen, onUnpin }: {
       <span className="nm">{name}</span>
       {quote ? (
         <>
-          <div className="px">${quote.price.toFixed(2)}</div>
-          <span className={`chg ${up ? "up" : "down"}`}>
-            {up ? "+" : ""}{quote.change_pct.toFixed(2)}%
-          </span>
+          <div className="px">{fmtPrice(quote.price)}</div>
+          <span className={`chg ${trend(quote.change_pct)}`}>{fmtChange(quote.change_pct)}</span>
         </>
       ) : (
         <div className="px">{sub ?? ""}</div>
@@ -266,7 +263,7 @@ function StockDetail({ symbol, onClose }: { symbol: string; onClose: () => void 
 
       {data && (
         <div className="detail-price">
-          <span className="detail-last">${data.stats.price.toFixed(2)}</span>
+          <span className="detail-last">{fmtPrice(data.stats.price)}</span>
           <span className={`detail-change ${up ? "up" : "down"}`}>
             {up ? "+" : ""}{data.stats.change.toFixed(2)} ({up ? "+" : ""}
             {data.stats.change_pct.toFixed(2)}%) {data.range}
@@ -277,17 +274,11 @@ function StockDetail({ symbol, onClose }: { symbol: string; onClose: () => void 
         </div>
       )}
 
-      <div className="tabs" role="tablist">
-        {(data?.ranges ?? ["1D", "1W", "1M", "6M", "YTD", "1Y", "5Y", "MAX"]).map((r) => (
-          <button
-            key={r} type="button"
-            className={`tab${r === range ? " active" : ""}`}
-            onClick={() => setRange(r)}
-          >
-            {r}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        options={data?.ranges ?? ["1D", "1W", "1M", "6M", "YTD", "1Y", "5Y", "MAX"]}
+        value={range}
+        onChange={setRange}
+      />
 
       {err ? (
         <p className="error">Couldn't load {symbol}: {err}</p>
@@ -297,7 +288,7 @@ function StockDetail({ symbol, onClose }: { symbol: string; onClose: () => void 
           values={data.points.map((p) => p.c)}
           color={up ? "var(--delta-up)" : "var(--series-8)"}
           area
-          fmt={(v) => `$${v.toFixed(2)}`}
+          fmt={fmtPrice}
         />
       ) : (
         <p className="fineprint">Loading {range}…</p>
@@ -306,9 +297,9 @@ function StockDetail({ symbol, onClose }: { symbol: string; onClose: () => void 
       {data && (
         <div className="detail-stats">
           {[
-            ["Open", `$${data.stats.open.toFixed(2)}`],
-            ["High", `$${data.stats.high.toFixed(2)}`],
-            ["Low", `$${data.stats.low.toFixed(2)}`],
+            ["Open", fmtPrice(data.stats.open)],
+            ["High", fmtPrice(data.stats.high)],
+            ["Low", fmtPrice(data.stats.low)],
             ["Volume", data.stats.volume
               ? data.stats.volume.toLocaleString("en-US", { notation: "compact" })
               : "—"],
