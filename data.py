@@ -330,7 +330,9 @@ def stock_history(symbol: str, range_key: str = "1Y", refresh: bool = False) -> 
                 return hit[1]
 
     period, interval = STOCK_RANGES[range_key]
-    df = yf.download(symbol, period=period, interval=interval,
+    # The route accepts every TICKERS key, including indices Yahoo spells with a
+    # caret (SPX is ^GSPC there), so apply the same mapping load_prices does.
+    df = yf.download(YF_SYMBOLS.get(symbol, symbol), period=period, interval=interval,
                      auto_adjust=True, progress=False)
     if df.empty:
         raise ValueError(f"No data returned for {symbol}")
@@ -389,7 +391,7 @@ def stock_news(symbol: str, limit: int = 8) -> list[dict]:
             return hit[1][:limit]
 
     items = []
-    for raw in yf.Ticker(symbol).news or []:
+    for raw in yf.Ticker(YF_SYMBOLS.get(symbol, symbol)).news or []:
         c = raw.get("content", raw)
         provider = c.get("provider")
         canonical = c.get("canonicalUrl") or c.get("clickThroughUrl") or {}
