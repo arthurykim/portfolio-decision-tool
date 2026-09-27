@@ -24,6 +24,7 @@ RUN uv sync --frozen --no-dev --no-cache
 COPY *.py ./
 COPY knowledge/ knowledge/
 COPY static/ static/
+COPY data/ data/
 
 RUN useradd -m appuser && mkdir -p cache db && chown -R appuser:appuser /app
 USER appuser

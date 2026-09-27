@@ -74,6 +74,11 @@ jobs:
           docker logs pdt
           exit 1
 
+      # /healthz touches no files. This reads data/, which the image once
+      # shipped without — every backtest 500'd on the missing data/cpi.json.
+      - name: Check bundled data files
+        run: curl -fsS http://localhost:8000/api/index-history > /dev/null
+
       - name: Container logs (on failure)
         if: failure()
         run: docker logs pdt

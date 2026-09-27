@@ -3,7 +3,6 @@
 .venv
 .claude
 cache
-data
 eval
 scripts
 tests
