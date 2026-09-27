@@ -42,22 +42,32 @@ services:
 
   # MinIO deleted minio/minio from Docker Hub in September 2026 when the
   # community edition was archived, which broke every pull — including this
-  # project's nightly integration run. The images are NOT on quay.io under the
-  # old path either (quay.io/minio/minio returns 401 anonymously, so the fix
-  # upstream Milvus still recommends does not work). The free AIStor build is
-  # the one MinIO actually publishes for anonymous pull.
+  # project's nightly integration run.
+  #
+  # Two replacements do NOT work, both verified against CI:
+  #   - quay.io/minio/minio (what upstream Milvus still recommends) refuses
+  #     anonymous pulls: 401.
+  #   - quay.io/minio/aistor/minio pulls fine, but AIStor is licence-gated and
+  #     logs "No valid license found ... All S3 operations are denied", so
+  #     Milvus fails every bucket check with Access Denied.
+  #
+  # Bitnami's archived image is the genuine community build with no licence
+  # gate. It is frozen, not maintained — see docs/RETRIEVAL.md for the
+  # migration note.
   minio:
-    image: quay.io/minio/aistor/minio:RELEASE.2026-09-19T17-05-25Z
+    image: bitnamilegacy/minio:2025.2.18-debian-12-r0
     profiles: ["vectors"]
     environment:
-      # ROOT_USER/ROOT_PASSWORD, not the ACCESS_KEY/SECRET_KEY pair this used
-      # to set: those were deprecated years ago and are gone from current
-      # releases. Values are unchanged, and they match Milvus's own defaults.
+      # Bitnami uses ROOT_USER/ROOT_PASSWORD; the old ACCESS_KEY/SECRET_KEY
+      # pair was deprecated upstream years ago. Values unchanged, and they
+      # still match Milvus's defaults.
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
+      # Milvus creates this itself, but pre-creating it removes a startup race.
+      MINIO_DEFAULT_BUCKETS: a-bucket
     volumes:
-      - minio-data:/minio_data
-    command: minio server /minio_data --console-address ":9001"
+      - minio-data:/bitnami/minio/data
+    # No `command:` — the Bitnami entrypoint configures and starts the server.
     healthcheck:
       test: ["CMD", "mc", "ready", "local"]
       interval: 30s
