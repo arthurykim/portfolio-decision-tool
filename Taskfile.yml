@@ -154,10 +154,10 @@ tasks:
       - "{{.PY}} eval/retrieval_modes.py"
 
   vectors:up:
-    desc: Start the Milvus vector store (etcd + MinIO + Milvus)
+    desc: Start the Milvus vector store (single container, embedded etcd)
     cmds:
       - docker compose --profile vectors up -d
-      - 'echo "Milvus starting: cold start takes ~1-2 min. Check with task vectors:status."'
+      - 'echo "Milvus starting (usually healthy within seconds). Check with task vectors:status."'
 
   vectors:down:
     desc: Stop the Milvus vector store

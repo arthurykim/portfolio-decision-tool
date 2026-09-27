@@ -41,15 +41,17 @@ jobs:
           key: hf-${{ runner.os }}-all-MiniLM-L6-v2
 
       # Uses the same compose file developers run locally, so CI and `task
-      # vectors:up` cannot drift apart.
+      # vectors:up` cannot drift apart. A single container (embedded etcd,
+      # local storage) — see the comment on the milvus service for why.
       - name: Start Milvus
-        run: docker compose --profile vectors up -d etcd minio milvus
+        run: docker compose --profile vectors up -d milvus
 
       - name: Install dependencies
         run: pip install -r requirements.txt -r requirements-dev.txt
 
-      # Cold start is well over a minute; poll the health endpoint rather than
-      # guessing with a fixed sleep.
+      # Poll the health endpoint rather than guessing with a fixed sleep. The
+      # single-container setup is usually healthy in seconds, but the budget
+      # stays generous so a slow runner reports a clear timeout, not a flake.
       - name: Wait for Milvus to be ready
         run: |
           for i in $(seq 1 60); do

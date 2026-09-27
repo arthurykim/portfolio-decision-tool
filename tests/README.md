@@ -40,7 +40,7 @@ deselects by default.
 Requires:
 
 ```bash
-task vectors:up          # etcd + MinIO + Milvus, ~1-2 min cold start
+task vectors:up          # single Milvus container, healthy in seconds
 task test:integration
 ```
 

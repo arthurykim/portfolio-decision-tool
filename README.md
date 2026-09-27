@@ -191,7 +191,7 @@ or Milvus is not running, retrieval logs a warning and falls back to BM25 rather
 than failing.
 
 ```bash
-task vectors:up      # start Milvus (etcd + MinIO + Milvus, via docker compose)
+task vectors:up      # start Milvus (one container, via docker compose)
 task vectors:build   # chunk, embed locally, and load into Milvus
 RETRIEVAL_MODE=hybrid task dev
 ```

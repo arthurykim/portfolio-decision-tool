@@ -7,7 +7,7 @@ embeddings -> Milvus -> RRF fusion chain is exercised end to end.
 
 Not part of the default run. Needs a server:
 
-    task vectors:up          # etcd + MinIO + Milvus, ~1-2 min cold start
+    task vectors:up          # single Milvus container, healthy in seconds
     task test:integration
 
 Skips (rather than fails) when Milvus or sentence-transformers is absent, so a
