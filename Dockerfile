@@ -1,13 +1,21 @@
 FROM python:3.12-slim
 
+COPY --from=ghcr.io/astral-sh/uv:0.12.19 /uv /usr/local/bin/uv
+
+# The venv lives outside /app so the chown below doesn't copy it into a second
+# layer, and uv uses this image's Python instead of downloading its own.
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1
+    UV_PROJECT_ENVIRONMENT=/opt/venv \
+    UV_PYTHON_DOWNLOADS=never \
+    UV_LINK_MODE=copy \
+    PATH="/opt/venv/bin:$PATH"
 
 WORKDIR /app
 
-COPY requirements.txt .
-RUN pip install -r requirements.txt
+# Exactly the versions in uv.lock; --frozen fails the build if it is stale.
+COPY pyproject.toml uv.lock .python-version ./
+RUN uv sync --frozen --no-dev --no-cache
 
 # Every root module, not a hand-maintained list. The list version silently
 # omitted env.py and observability.py — both imported at the top of main.py —

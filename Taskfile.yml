@@ -7,10 +7,22 @@ vars:
 
 tasks:
   setup:
-    desc: Create venv and install dependencies
+    desc: Install every dependency - Python (pinned by uv.lock) and the React frontend
+    preconditions:
+      - sh: command -v uv
+        msg: "uv is not installed: brew install uv, or see https://docs.astral.sh/uv/getting-started/installation/"
+      - sh: command -v npm
+        msg: "npm is not installed (needed for frontend/): brew install node"
     cmds:
-      - python3 -m venv .venv
-      - .venv/bin/pip install -r requirements.txt -r requirements-dev.txt
+      # Creates .venv, fetching Python 3.12 first if it is not already on the machine.
+      - uv sync
+      - npm --prefix frontend ci
+
+  deps:upgrade:
+    desc: Move uv.lock to the newest versions pyproject.toml allows, then reinstall
+    cmds:
+      - uv lock --upgrade
+      - uv sync
 
   dev:
     desc: Run the app locally with auto-reload (PORT=8001 task dev to override)
@@ -108,9 +120,8 @@ tasks:
     desc: Run the RAGAS evaluation (needs GOOGLE_API_KEY)
     cmds:
       # Isolated venv: ragas pins an older langchain stack than the app uses.
-      # Derived from the app venv's interpreter so binary wheels resolve.
-      - test -d .venv-eval || {{.PY}} -m venv .venv-eval
-      - .venv-eval/bin/pip install -q -r eval/requirements-eval.txt
+      - uv venv --allow-existing .venv-eval
+      - uv pip install -q --python .venv-eval -r eval/requirements-eval.txt
       - .venv-eval/bin/python eval/ragas_eval.py
 
   docker:build:

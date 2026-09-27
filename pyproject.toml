@@ -1,0 +1,37 @@
+[project]
+name = "portfolio-decision-tool"
+version = "1.0.0"
+description = "Backtest capital allocations against real historical market data."
+requires-python = ">=3.12,<3.13"
+# Ranges say what the code supports; uv.lock pins the exact versions everyone
+# installs. `task deps:upgrade` moves the lock forward within these ranges.
+dependencies = [
+    "fastapi>=0.140,<1.0",
+    "uvicorn[standard]>=0.51,<1.0",
+    "pandas>=3.0.5,<4.0",
+    "numpy>=2.5,<3.0",
+    "yfinance>=1.5.2,<2.0",
+    "pyarrow>=25.0,<26.0",
+    "pydantic>=2.13,<3.0",
+    "google-genai>=2.14,<3.0",
+    # Dense/hybrid retrieval. Optional at runtime (retrieval degrades to BM25
+    # without Milvus), but needed to build or query the vector index.
+    # sentence-transformers pulls torch, the bulk of the image size.
+    "sentence-transformers>=5.0,<6.0",
+    "transformers>=5.0,<6.0",
+    "pymilvus>=3.0,<4.0",
+    "langchain-text-splitters>=1.0,<2.0",
+]
+
+[dependency-groups]
+# Installed by `uv sync` by default; excluded from the image with --no-dev.
+dev = [
+    "pytest>=8.4,<9.0",
+    "httpx>=0.28,<1.0",
+    "ruff>=0.14,<1.0",
+]
+
+[tool.uv]
+# An application, not a library: install its dependencies, never the project itself.
+package = false
+required-version = ">=0.12"

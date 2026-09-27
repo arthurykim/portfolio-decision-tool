@@ -111,7 +111,7 @@ Docker image.
 With [Task](https://taskfile.dev) (`brew install go-task`):
 
 ```bash
-task setup     # create venv, install deps
+task setup     # install all deps: Python via uv (pinned by uv.lock) + frontend via npm
 task dev       # run at http://localhost:8000
 task kill      # stop the running server
 task restart   # kill + start fresh
@@ -120,13 +120,16 @@ task test      # run the test suite
 
 `PORT=8001 task dev` (and `task kill`, `task restart`) to use a different port.
 
-Without Task:
+Without Task (needs [uv](https://docs.astral.sh/uv/getting-started/installation/), `brew install uv`):
 
 ```bash
-python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt -r requirements-dev.txt
-.venv/bin/uvicorn main:app --reload   # http://localhost:8000
+uv sync                           # .venv with the exact versions in uv.lock
+uv run uvicorn main:app --reload  # http://localhost:8000
 ```
+
+Dependencies are declared in `pyproject.toml` and pinned in `uv.lock`. Add one
+with `uv add <package>` (or `uv add --dev <package>`) and commit both files;
+`task deps:upgrade` moves every pin forward.
 
 Docker:
 
@@ -153,7 +156,7 @@ Without a key the chat still answers from the knowledge base in extractive mode.
 
 ```bash
 task lint            # ruff over the whole repo
-task test            # 128 unit + API tests; hermetic (synthetic data if no cache)
+task test            # unit + API tests; hermetic (synthetic data if no cache)
 task test:integration  # 9 Milvus integration tests (needs `task vectors:up`)
 task web:test        # React component tests
 task check           # lint + config validation + tests, all in one
@@ -281,7 +284,7 @@ Most folders have their own README with the detail; this table is the index.
 | `knowledge/` | Finance knowledge base + Learn articles (15 markdown files) — [README](knowledge/README.md) |
 | `static/` | The **deployed** frontend (HTML/CSS/JS, no framework), served by `main.py` |
 | `frontend/` | React + TypeScript + Vite client, deploys separately to Vercel — [README](frontend/README.md) |
-| `tests/` | 128 hermetic tests + 9 Milvus integration tests — [README](tests/README.md) |
+| `tests/` | Hermetic tests + 9 Milvus integration tests — [README](tests/README.md) |
 | `eval/` | 78-question golden set + retrieval, chunking, and mode benchmarks — [README](eval/README.md) |
 | `scripts/` | Maintenance jobs: market refresh, vector build, index history — [README](scripts/README.md) |
 | `deploy/` | App Runner script + deployment docs |

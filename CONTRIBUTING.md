@@ -5,8 +5,12 @@ what the tool *is*; this explains how to work on it.
 
 ## Day one
 
+Prerequisites: [Task](https://taskfile.dev), [uv](https://docs.astral.sh/uv/),
+and Node 22 (`brew install go-task uv node`). uv fetches Python 3.12 itself if
+you don't have it.
+
 ```bash
-task setup                 # venv + Python deps
+task setup                 # Python deps (uv) + frontend deps (npm)
 cp .env.example .env       # optional: add GOOGLE_API_KEY for the AI assistant
 task dev                   # http://localhost:8000
 ```
@@ -23,7 +27,7 @@ Then run the full check once, so you know what green looks like before you
 change anything:
 
 ```bash
-task check                 # lint + config validation + 128 tests
+task check                 # lint + config validation + tests
 ```
 
 `task --list` shows every command. There is a task for almost everything; prefer
@@ -71,7 +75,7 @@ Every pull request runs, automatically:
 | Job | What it checks | Roughly |
 |---|---|---|
 | `lint` | `ruff check` over the repo | 10s |
-| `test` | 128 hermetic Python tests | 2m |
+| `test` | Hermetic Python tests | 2m |
 | `frontend` | React typecheck, tests, build | 25s |
 | `docker` | Image builds **and the container boots** (`/healthz`) | 2m |
 | `milvus` | 9 integration tests against a real Milvus | 3m |

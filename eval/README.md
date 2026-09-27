@@ -29,7 +29,7 @@ Two kinds of evaluation live here, and the difference matters:
 | File | What it does |
 |---|---|
 | `ragas_eval.py` | RAGAS metrics on the chat assistant: faithfulness, context precision, context recall. `task eval` |
-| `requirements-eval.txt` | Pinned deps for the above. Installed into a **separate** `.venv-eval` because RAGAS pins an older LangChain than the app uses — do not merge these into `requirements.txt`. |
+| `requirements-eval.txt` | Pinned deps for the above. Installed into a **separate** `.venv-eval` because RAGAS pins an older LangChain than the app uses — do not merge these into `pyproject.toml`. |
 
 ### Run history
 | File | What it does |

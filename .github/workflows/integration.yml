@@ -7,7 +7,7 @@ name: integration
 #
 # It runs on EVERY pull request, deliberately. It used to be path-filtered to
 # the retrieval files, but the filter cannot see indirect breakage — a change to
-# data.py, env.py, or a requirements bump can break the retrieval path without
+# data.py, env.py, or a dependency bump can break the retrieval path without
 # touching any file on the list, and that would reach main unchecked. ~3 minutes
 # per PR is worth the certainty. If PR volume ever makes that cost real, prefer
 # making it a required check that can be skipped by label over reinstating a
@@ -27,10 +27,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v6
         with:
-          python-version: "3.12"
-          cache: pip
+          version: "0.12.19"
+          enable-cache: true
 
       # The model is ~90 MB and never changes for a given EMBED_MODEL, so
       # caching it saves a download on every run.
@@ -46,7 +46,7 @@ jobs:
         run: docker compose --profile vectors up -d etcd minio milvus
 
       - name: Install dependencies
-        run: pip install -r requirements.txt -r requirements-dev.txt
+        run: uv sync --frozen
 
       # Cold start is well over a minute; poll the health endpoint rather than
       # guessing with a fixed sleep.
@@ -65,7 +65,7 @@ jobs:
       # -m integration alongside the path keeps a miswired marker from silently
       # turning this into a no-op run.
       - name: Run integration tests
-        run: pytest tests/integration -v -m integration
+        run: uv run --no-sync pytest tests/integration -v -m integration
         env:
           MILVUS_URI: http://localhost:19530
 
