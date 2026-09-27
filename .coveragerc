@@ -1,0 +1,24 @@
+[run]
+# Everything at the root, discovered rather than listed. A hand-maintained
+# module list is exactly what let env.py and observability.py fall out of the
+# Dockerfile unnoticed; a new module here is measured the day it is added.
+source = .
+omit =
+    tests/*
+    eval/*
+    scripts/*
+    frontend/*
+    .venv/*
+    .venv-eval/*
+
+[report]
+show_missing = true
+skip_covered = true
+# The floor sits just under the current figure so ordinary churn does not trip
+# it, while a real drop still does. Raise it when coverage rises — it is a
+# ratchet, not a target.
+fail_under = 83
+exclude_also =
+    if TYPE_CHECKING:
+    raise NotImplementedError
+    if __name__ == .__main__.:
