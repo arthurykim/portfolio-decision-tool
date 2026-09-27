@@ -1,10 +1,4 @@
-"""Compare chunking strategies on retrieval quality against the golden set.
-
-Runs fully offline — no API key, no cost — because retrieval is local. For each
-strategy registered in rag.CHUNKERS it builds a BM25 index, scores the same
-golden questions used by retrieval_eval.py (recall@1, recall@3, MRR), and prints
-a side-by-side table. This is the fast feedback loop for chunking experiments:
-edit a strategy (or add one) in rag.py, then rerun this.
+"""Score every chunking strategy in rag.CHUNKERS on the golden set (BM25, offline).
 
     python eval/chunking_sweep.py
 """
@@ -19,55 +13,27 @@ from env import load_env  # noqa: E402
 load_env()
 
 import history  # noqa: E402
+from scoring import K, load_cases, numeric, score  # noqa: E402
 
 from rag import CHUNKERS, BM25Index, load_chunks  # noqa: E402
 
-GOLDEN = Path(__file__).parent / "golden_qa.jsonl"
 RESULTS = Path(__file__).parent / "chunking_results.json"
-K = 3
 
 
-def _load_cases() -> list[dict]:
-    return [json.loads(line) for line in GOLDEN.read_text().splitlines() if line.strip()]
-
-
-def score(index: BM25Index, cases: list[dict], k: int = K) -> dict:
-    """File-level retrieval metrics for one index over the golden set."""
-    hits_at_1 = hits_at_k = 0
-    reciprocal_ranks = 0.0
-    misses = []
-    for case in cases:
-        expected = case["expected_source"]
-        ranked = [c.source for c, _ in index.search(case["question"], k=k)]
-        rank = ranked.index(expected) + 1 if expected in ranked else 0
-        hits_at_1 += rank == 1
-        hits_at_k += rank > 0
-        reciprocal_ranks += 1 / rank if rank else 0.0
-        if rank != 1:
-            misses.append({
-                "question": case["question"],
-                "expected": expected,
-                "got": ranked[0] if ranked else None,
-                "rank": rank,
-            })
-    n = len(cases)
-    avg_len = sum(len(c.tokens) for c in index.chunks) / max(index.n, 1)
+def score_index(index: BM25Index, cases: list[dict]) -> dict:
+    result = score(cases, lambda q: [c.source for c, _ in index.search(q, k=K)])
+    rows = result.pop("cases")
     return {
         "chunks": index.n,
-        "avg_tokens": round(avg_len, 1),
-        "recall_at_1": round(hits_at_1 / n, 3),
-        f"recall_at_{K}": round(hits_at_k / n, 3),
-        "mrr": round(reciprocal_ranks / n, 3),
-        "misses": misses,
+        "avg_tokens": round(index.avgdl, 1),
+        **result,
+        "misses": [r for r in rows if r["rank"] != 1],
     }
 
 
 def main() -> None:
-    cases = _load_cases()
-    results = {}
-    for name in CHUNKERS:
-        index = BM25Index(load_chunks(name))
-        results[name] = score(index, cases)
+    cases = load_cases()
+    results = {name: score_index(BM25Index(load_chunks(name)), cases) for name in CHUNKERS}
 
     RESULTS.write_text(json.dumps(
         {"questions": len(cases), "k": K, "strategies": results}, indent=2,
@@ -94,8 +60,7 @@ def main() -> None:
         for name, res in results.items():
             history.record(
                 "chunking",
-                {k: v for k, v in res.items()
-                 if isinstance(v, (int, float)) and k not in ("chunks", "avg_tokens")},
+                numeric(res, exclude=("chunks", "avg_tokens")),
                 config={"strategy": name, "k": K},
                 corpus={"questions": len(cases), "chunks": res["chunks"],
                         "avg_tokens": res["avg_tokens"]},

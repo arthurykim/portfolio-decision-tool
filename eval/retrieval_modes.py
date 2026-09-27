@@ -1,21 +1,9 @@
-"""Compare retrieval modes — bm25 vs dense vs hybrid — on the golden set.
+"""Compare bm25 vs dense vs hybrid on the golden set, same metrics as retrieval_eval.py.
 
-This is the experiment the embedding work exists to settle: does dense retrieval
-actually fix the paraphrase questions BM25 misses, and does fusing the two beat
-either alone? It scores the same golden questions and metrics as
-retrieval_eval.py, so the numbers are directly comparable.
-
-Needs Milvus running with the collection built:
-
-    docker compose --profile vectors up -d
-    task vectors:build
-    task eval:modes
-
-Modes whose backend is unavailable are reported as skipped rather than silently
-scoring as BM25.
+Needs `task vectors:up && task vectors:build`. Modes whose backend is unavailable
+are reported as skipped rather than silently scoring as BM25.
 """
 import json
-import os
 import sys
 from pathlib import Path
 
@@ -26,46 +14,27 @@ from env import load_env  # noqa: E402
 load_env()
 
 import history  # noqa: E402
+from scoring import K, load_cases, numeric, score  # noqa: E402
 
 import vectorstore  # noqa: E402
-from rag import DEFAULT_CHUNKER, MODES, retrieve  # noqa: E402
+from rag import MODES, chunk_strategy, retrieve  # noqa: E402
 
-GOLDEN = Path(__file__).parent / "golden_qa.jsonl"
 RESULTS = Path(__file__).parent / "mode_results.json"
-K = 3
 
 
-def score(mode: str, cases: list[dict]) -> dict:
-    hits_at_1 = hits_at_k = 0
-    reciprocal_ranks = 0.0
-    misses = []
-    for case in cases:
-        expected = case["expected_source"]
-        ranked = [p["source"] for p in retrieve(case["question"], k=K, mode=mode)]
-        rank = ranked.index(expected) + 1 if expected in ranked else 0
-        hits_at_1 += rank == 1
-        hits_at_k += rank > 0
-        reciprocal_ranks += 1 / rank if rank else 0.0
-        if rank != 1:
-            misses.append({
-                "question": case["question"],
-                "expected": expected,
-                "got": ranked[0] if ranked else None,
-                "rank": rank,
-            })
-    n = len(cases)
+def score_mode(mode: str, cases: list[dict]) -> dict:
+    result = score(cases, lambda q: [p["source"] for p in retrieve(q, k=K, mode=mode)])
+    rows = result.pop("cases")
     return {
-        "recall_at_1": round(hits_at_1 / n, 3),
-        f"recall_at_{K}": round(hits_at_k / n, 3),
-        "mrr": round(reciprocal_ranks / n, 3),
-        "total_misses": sum(1 for m in misses if m["rank"] == 0),
-        "misses": misses,
+        **result,
+        "total_misses": sum(r["rank"] == 0 for r in rows),
+        "misses": [r for r in rows if r["rank"] != 1],
     }
 
 
 def main() -> None:
-    cases = [json.loads(line) for line in GOLDEN.read_text().splitlines() if line.strip()]
-    strategy = os.environ.get("CHUNK_STRATEGY") or DEFAULT_CHUNKER
+    cases = load_cases()
+    strategy = chunk_strategy()
     dense_ok = vectorstore.available()
 
     results, skipped = {}, []
@@ -73,7 +42,7 @@ def main() -> None:
         if mode != "bm25" and not dense_ok:
             skipped.append(mode)
             continue
-        results[mode] = score(mode, cases)
+        results[mode] = score_mode(mode, cases)
 
     RESULTS.write_text(json.dumps(
         {"questions": len(cases), "k": K, "strategy": strategy,
@@ -110,7 +79,7 @@ def main() -> None:
         for mode, res in results.items():
             history.record(
                 "retrieval_mode",
-                {k: v for k, v in res.items() if isinstance(v, (int, float))},
+                numeric(res),
                 config={"strategy": strategy, "mode": mode, "k": K},
                 corpus={"questions": len(cases)},
                 notes="retrieval mode comparison",

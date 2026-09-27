@@ -1,13 +1,5 @@
-"""Append-only log of evaluation runs, so metrics become a time series.
-
-A single run tells you the current score. A history tells you whether a change
-helped — which is the question that actually matters when tuning chunking, the
-tokenizer, or BM25's parameters.
-
-Records live in eval/history.jsonl (one JSON object per line, newest last) and
-are stamped with the git commit and working-tree state, so a number can always
-be traced back to the code that produced it.
-"""
+"""Append-only log of eval runs (eval/history.jsonl), stamped with git commit and
+dirty state so every number traces back to the code that produced it."""
 import json
 import os
 import subprocess
@@ -16,9 +8,10 @@ from pathlib import Path
 
 HISTORY = Path(__file__).parent / "history.jsonl"
 
-# Metrics where a larger number is better. Used to label deltas as gain/loss.
-HIGHER_IS_BETTER = {"recall_at_1", "recall_at_3", "mrr", "faithfulness",
-                    "context_precision", "context_recall"}
+# Headline metrics; for all of them larger is better, which labels deltas gain/loss.
+METRICS = ("recall_at_1", "recall_at_3", "mrr",
+           "faithfulness", "context_precision", "context_recall")
+HIGHER_IS_BETTER = set(METRICS)
 
 
 def _git(*args: str) -> str:
@@ -32,7 +25,6 @@ def _git(*args: str) -> str:
 
 
 def _provenance() -> dict:
-    """Where this run came from: commit, branch, and whether the tree was dirty."""
     dirty = bool(_git("status", "--porcelain"))
     return {
         "commit": _git("rev-parse", "--short", "HEAD") or None,
@@ -44,13 +36,7 @@ def _provenance() -> dict:
 
 def record(kind: str, metrics: dict, *, config: dict | None = None,
            corpus: dict | None = None, notes: str | None = None) -> dict:
-    """Append one run to the history and return the stored record.
-
-    kind    — "retrieval", "chunking", or "ragas"
-    metrics — flat {name: number}; keys in HIGHER_IS_BETTER get a direction
-    config  — what was varied (strategy, k, model, …)
-    corpus  — size of what was indexed (chunks, avg_tokens, questions)
-    """
+    """Append one run. `config` is what was varied, `corpus` the size of what was indexed."""
     entry = {
         "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "kind": kind,
@@ -68,7 +54,6 @@ def record(kind: str, metrics: dict, *, config: dict | None = None,
 
 
 def load(kind: str | None = None, config_match: dict | None = None) -> list[dict]:
-    """Every recorded run, oldest first, optionally filtered."""
     if not HISTORY.exists():
         return []
     runs = []
@@ -89,13 +74,11 @@ def load(kind: str | None = None, config_match: dict | None = None) -> list[dict
 
 
 def previous(kind: str, config_match: dict | None = None) -> dict | None:
-    """The most recent comparable run, for computing a delta."""
     runs = load(kind, config_match)
     return runs[-1] if runs else None
 
 
 def compare(current: dict, prior: dict | None) -> dict[str, dict]:
-    """Per-metric delta vs a prior run, labelled by direction."""
     if not prior:
         return {}
     out = {}
@@ -116,7 +99,6 @@ def compare(current: dict, prior: dict | None) -> dict[str, dict]:
 
 
 def format_deltas(deltas: dict[str, dict], prior: dict) -> str:
-    """One-line-per-metric comparison, for printing after a run."""
     if not deltas:
         return ""
     arrow = {"better": "▲", "worse": "▼", "flat": "=", "up": "▲", "down": "▼"}

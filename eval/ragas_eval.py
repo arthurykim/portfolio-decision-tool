@@ -1,13 +1,6 @@
-"""RAGAS evaluation of the chat assistant against the golden Q&A set.
+"""RAGAS evaluation (faithfulness, context precision/recall) of the chat assistant.
 
-Requires a Gemini API key (GOOGLE_API_KEY in .env) and the eval extras:
-    pip install -r eval/requirements-eval.txt
-    python eval/ragas_eval.py
-
-Metrics (LLM-judged, no embedding model needed):
-    faithfulness       — is the answer grounded in the retrieved contexts?
-    context_precision  — are the retrieved contexts relevant to the question?
-    context_recall     — do the contexts cover the ground truth?
+Needs GOOGLE_API_KEY; run with `task eval`, which installs eval/requirements-eval.txt.
 """
 import json
 import os
@@ -27,10 +20,10 @@ from ragas import EvaluationDataset, evaluate  # noqa: E402
 from ragas.llms import LangchainLLMWrapper  # noqa: E402
 from ragas.metrics import context_precision, context_recall, faithfulness  # noqa: E402
 from ragas.run_config import RunConfig  # noqa: E402
+from scoring import GOLDEN, load_cases  # noqa: E402
 
 from rag import MODEL, answer, retrieve  # noqa: E402
 
-GOLDEN = Path(__file__).parent / "golden_qa.jsonl"
 RESULTS = Path(__file__).parent / "results.json"
 
 # Gemini's free tier allows 5 requests/minute per model, so space calls out.
@@ -43,7 +36,6 @@ SPACING = 60.0 / max(RPM, 1)
 
 
 def _throttle(last_call: float) -> float:
-    """Sleep so consecutive calls stay under the per-minute quota."""
     wait = SPACING - (time.monotonic() - last_call)
     if wait > 0:
         time.sleep(wait)
@@ -52,7 +44,7 @@ def _throttle(last_call: float) -> float:
 
 def build_dataset() -> EvaluationDataset:
     rows = []
-    cases = [json.loads(line) for line in GOLDEN.read_text().splitlines() if line.strip()]
+    cases = load_cases()
     if LIMIT:
         cases = cases[:LIMIT]
         print(f"  (EVAL_LIMIT={LIMIT}: scoring the first {LIMIT} questions)")
