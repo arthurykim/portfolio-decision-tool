@@ -41,3 +41,47 @@ def test_short_history_clamps_to_start():
 def test_ticker_metadata_complete():
     assert len(TICKERS) == 13
     assert all(isinstance(name, str) and name for name in TICKERS.values())
+
+
+class _FakeTicker:
+    """Stands in for yf.Ticker so the news tests never touch the network."""
+
+    def __init__(self, items):
+        self.news = items
+
+
+def _item(url, title="Headline"):
+    return {"content": {"title": title, "canonicalUrl": {"url": url},
+                        "provider": {"displayName": "Somewhere"},
+                        "pubDate": "2026-08-04T00:00:00Z"}}
+
+
+def test_stock_news_drops_non_http_urls(monkeypatch):
+    """The feed is third-party and its url is rendered into an href."""
+    import data
+
+    feed = [
+        _item("javascript:alert(1)", "injected"),
+        _item("data:text/html,<script>", "also injected"),
+        _item("https://example.com/real", "kept"),
+    ]
+    monkeypatch.setattr(data.yf, "Ticker", lambda s: _FakeTicker(feed))
+    data._news_cache.clear()
+
+    items = data.stock_news("SPY")
+    assert [i["title"] for i in items] == ["kept"]
+    assert all(i["url"].startswith(("https://", "http://")) for i in items)
+
+
+def test_stock_news_skips_items_missing_url_or_title(monkeypatch):
+    import data
+
+    feed = [
+        {"content": {"title": "no url", "provider": {"displayName": "X"}}},
+        _item("https://example.com/untitled", title=""),
+        _item("https://example.com/ok", "ok"),
+    ]
+    monkeypatch.setattr(data.yf, "Ticker", lambda s: _FakeTicker(feed))
+    data._news_cache.clear()
+
+    assert [i["title"] for i in data.stock_news("SPY")] == ["ok"]
