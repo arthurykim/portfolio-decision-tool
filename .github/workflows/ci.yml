@@ -27,7 +27,11 @@ jobs:
           python-version: "3.12"
           cache: pip
       - run: pip install -r requirements.txt -r requirements-dev.txt
-      - run: pytest -q
+
+      # --cov enforces the floor in .coveragerc, so a PR that adds code without
+      # tests fails here rather than quietly eroding the suite. Raise the floor
+      # when coverage rises; it is a ratchet, not a target.
+      - run: pytest -q --cov --cov-report=term
 
   frontend:
     runs-on: ubuntu-latest
