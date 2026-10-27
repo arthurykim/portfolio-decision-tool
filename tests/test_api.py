@@ -10,6 +10,19 @@ def test_healthz():
     assert client.get("/healthz").json() == {"status": "ok"}
 
 
+def test_versioned_static_assets_are_cached_but_api_responses_are_not():
+    asset = client.get("/style.css?v=16")
+    assert asset.headers["Cache-Control"] == "public, max-age=31536000, immutable"
+
+    api = client.get("/api/auth/me?v=16")
+    assert "immutable" not in api.headers.get("Cache-Control", "")
+
+
+def test_html_is_not_cached_even_with_a_version_query():
+    page = client.get("/markets?v=16")
+    assert page.headers["Cache-Control"] == "no-cache"
+
+
 def test_tickers():
     data = client.get("/api/tickers").json()
     assert len(data) == 13

@@ -601,9 +601,14 @@ async def cache_headers(request, call_next):
     """HTML is never cached (so updates land immediately); versioned assets are immutable."""
     response = await call_next(request)
     content_type = response.headers.get("content-type", "")
+    path = request.url.path
+    is_static_asset = (
+        not path.startswith(("/api/", "/metrics"))
+        and Path(path).suffix in {".css", ".js", ".json", ".svg"}
+    )
     if "text/html" in content_type:
         response.headers["Cache-Control"] = "no-cache"
-    elif "v=" in request.url.query:
+    elif is_static_asset and "v=" in request.url.query:
         response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
     return response
 
