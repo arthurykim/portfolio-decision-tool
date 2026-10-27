@@ -805,13 +805,32 @@ async function loadStockNews(symbol) {
       box.innerHTML = `<h4>Latest news</h4><p class="fineprint">No recent headlines.</p>`;
       return;
     }
-    box.innerHTML = `<h4>Latest news</h4>` + r.items.map((n) => {
+    const heading = document.createElement("h4");
+    heading.textContent = "Latest news";
+    box.replaceChildren(heading);
+    for (const n of r.items) {
       const when = n.published ? new Date(n.published).toLocaleDateString() : "";
-      return `<a class="news-item" href="${n.url}" target="_blank" rel="noopener noreferrer">` +
-        `<span class="news-title">${n.title}</span>` +
-        `<span class="news-meta">${n.publisher}${when ? " · " + when : ""}</span></a>`;
-    }).join("") +
-    `<p class="fineprint">Headlines and links via Yahoo Finance; articles open at the publisher.</p>`;
+      const link = document.createElement("a");
+      link.className = "news-item";
+      link.href = n.url;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+
+      const title = document.createElement("span");
+      title.className = "news-title";
+      title.textContent = n.title;
+
+      const meta = document.createElement("span");
+      meta.className = "news-meta";
+      meta.textContent = n.publisher + (when ? ` · ${when}` : "");
+      link.append(title, meta);
+      box.append(link);
+    }
+    const attribution = document.createElement("p");
+    attribution.className = "fineprint";
+    attribution.textContent =
+      "Headlines and links via Yahoo Finance; articles open at the publisher.";
+    box.append(attribution);
   } catch {
     box.innerHTML = `<h4>Latest news</h4><p class="fineprint">News unavailable right now.</p>`;
   }
