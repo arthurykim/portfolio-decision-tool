@@ -80,6 +80,30 @@ def test_backtest_rejects_negative_weight():
     assert r.status_code == 422
 
 
+def test_backtest_rejects_non_finite_weights():
+    for value in ("NaN", "Infinity", "-Infinity"):
+        r = client.post("/api/backtest", json={"allocation": {"SPY": value}})
+        assert r.status_code == 422, value
+
+
+def test_backtest_rejects_invalid_dates():
+    invalid = client.post(
+        "/api/backtest",
+        json={"allocation": {"SPY": 1.0}, "start": "not-a-date"},
+    )
+    assert invalid.status_code == 422
+
+    reversed_range = client.post(
+        "/api/backtest",
+        json={
+            "allocation": {"SPY": 1.0},
+            "start": "2025-01-02",
+            "end": "2025-01-01",
+        },
+    )
+    assert reversed_range.status_code == 422
+
+
 def test_market_dashboard():
     r = client.get("/api/market")
     assert r.status_code == 200
