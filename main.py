@@ -4,7 +4,9 @@ Serves the JSON API under /api/* and the static frontend at /.
 Run locally:  uvicorn main:app --reload
 """
 import logging
+import math
 import time
+from datetime import date
 from pathlib import Path
 
 from env import load_env
@@ -16,7 +18,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 import db
 from auth import (
@@ -81,8 +83,8 @@ class BacktestRequest(BaseModel):
     allocation: dict[str, float] = Field(
         ..., description="Ticker → weight, weights sum to 1.0", min_length=1
     )
-    start: str | None = Field(None, description="ISO date lower bound")
-    end: str | None = Field(None, description="ISO date upper bound")
+    start: date | None = Field(None, description="ISO date lower bound")
+    end: date | None = Field(None, description="ISO date upper bound")
 
     @field_validator("allocation")
     @classmethod
@@ -90,12 +92,20 @@ class BacktestRequest(BaseModel):
         unknown = [t for t in v if t not in TICKERS]
         if unknown:
             raise ValueError(f"Unsupported tickers: {unknown}")
+        if any(not math.isfinite(w) for w in v.values()):
+            raise ValueError("Weights must be finite numbers")
         if any(w < 0 for w in v.values()):
             raise ValueError("Weights must be non-negative")
         total = sum(v.values())
         if abs(total - 1.0) > 1e-3:
             raise ValueError(f"Weights must sum to 1.0 (got {total:.4f})")
         return v
+
+    @model_validator(mode="after")
+    def _valid_date_range(self):
+        if self.start is not None and self.end is not None and self.start > self.end:
+            raise ValueError("Start date must be on or before end date")
+        return self
 
 
 class ChatTurn(BaseModel):
