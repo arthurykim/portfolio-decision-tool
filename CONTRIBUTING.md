@@ -23,7 +23,7 @@ Then run the full check once, so you know what green looks like before you
 change anything:
 
 ```bash
-task check                 # lint + config validation + 128 tests
+task check                 # lint + config validation + 163 tests with coverage
 ```
 
 `task --list` shows every command. There is a task for almost everything; prefer
@@ -71,7 +71,7 @@ Every pull request runs, automatically:
 | Job | What it checks | Roughly |
 |---|---|---|
 | `lint` | `ruff check` over the repo | 10s |
-| `test` | 128 hermetic Python tests | 2m |
+| `test` | 163 hermetic Python tests, **with a coverage floor** | 2m |
 | `frontend` | React typecheck, tests, build | 25s |
 | `docker` | Image builds **and the container boots** (`/healthz`) | 2m |
 | `milvus` | 9 integration tests against a real Milvus | 3m |

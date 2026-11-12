@@ -48,6 +48,11 @@ tasks:
     cmds:
       - '{{.PY}} -m pytest tests/integration -q -m integration'
 
+  test:cov:
+    desc: Run the suite with a coverage report (floor in .coveragerc)
+    cmds:
+      - "{{.PY}} -m pytest -q --cov --cov-report=term"
+
   lint:
     desc: Lint the Python source (config in ruff.toml)
     cmds:
@@ -87,7 +92,9 @@ tasks:
       # vectorstore.py). One less thing to remember to update.
       - task: lint
       - "{{.PY}} -c \"import yaml; [yaml.safe_load(open(f)) for f in ['.github/workflows/ci.yml', '.github/workflows/integration.yml', '.github/workflows/market-refresh.yml', 'docker-compose.yml']]\""
-      - "{{.PY}} -m pytest tests/ -q"
+      # Coverage rather than a bare run: `check` is the gate, so it enforces
+      # the floor in .coveragerc the same way CI does.
+      - task: test:cov
 
   admin:
     desc: 'Create/promote an admin: ADMIN_USER=you ADMIN_PASS=secret task admin'
