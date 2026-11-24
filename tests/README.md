@@ -2,6 +2,7 @@
 
 ```bash
 task test                # the default suite: fast, hermetic, no services
+task test:cov            # the same suite, with a coverage report and floor
 task test:integration    # live Milvus required (see below)
 ```
 
@@ -22,6 +23,7 @@ deselects by default.
 |---|---|
 | `test_api.py` | Every `/api/*` endpoint through FastAPI's `TestClient` — status codes, payload shape, validation errors. |
 | `test_auth.py` | Password hashing, session cookies, `require_user` / `require_admin` guards. |
+| `test_stocks_api.py` | The Stocks routes (`quotes`, `history`, `news`), watchlist pin/unpin, and Learn article lookup. Upstream data is faked — see the note on patching below. |
 | `test_backtest.py` | The backtest engine against synthetic prices — returns, drawdown, rebalancing. |
 | `test_data.py` | Price loading, caching, and the ticker catalog. |
 | `test_env.py` | `.env` parsing and precedence over the real environment. |
@@ -56,3 +58,40 @@ because installing torch and downloading the model takes minutes.
 - Prefer asserting on behaviour that would actually break a user. `test_retrieval_modes.py`
   and the integration file are deliberately split along this line: one proves the
   fallback *logic* is right, the other proves the real thing *works*.
+
+## Coverage
+
+`task test:cov` reports coverage and enforces a floor set in `.coveragerc`
+(currently **82%**; CI measures ~83%, local ~84%). CI runs the same thing, so a change
+that adds code without tests fails the `test` job rather than quietly eroding
+the suite.
+
+Local coverage reads about a point higher than CI: a developer with a populated
+`cache/` exercises more of `data.py` than CI's synthetic fixtures do. The floor
+is set against the **CI** figure, since that is the one that gates merges.
+
+The floor is a **ratchet, not a target** — when coverage rises, raise it. Do not
+lower it to make a PR pass; that is the failure mode it exists to prevent.
+
+`.coveragerc` measures by discovery (`source = .`) rather than a list of
+modules, so a new module is measured the day it is added. A hand-maintained list
+is what let `env.py` and `observability.py` fall out of the Dockerfile unnoticed.
+
+Where the remaining gaps are, as of this writing:
+
+| Module | Cover | Why |
+|---|---|---|
+| `data.py` | 59% | The yfinance-facing paths — quotes, history, news. Hermetic tests can only reach these through fakes, and most are not faked yet. **The biggest remaining gap.** |
+| `vectorstore.py` / `embeddings.py` | 54% / 44% | Covered by `tests/integration/`, which the default run deselects. Not really untested. |
+
+## A note on patching
+
+`main.py` does `from data import stock_news, ...`, which binds the name onto
+`main` at import time. Patching `data.stock_news` therefore leaves `main`'s
+reference untouched and the test hits the network for real. Patch the name on
+the module that *uses* it:
+
+```python
+monkeypatch.setattr(main, "stock_news", fake)   # correct
+monkeypatch.setattr(data, "stock_news", fake)   # silently does nothing here
+```
